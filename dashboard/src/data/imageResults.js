@@ -1,0 +1,42 @@
+export const imageResults = [
+  {
+    incident_id: 'INC-001',
+    image_id: 'scene_accident',
+    scene_type: 'Accident',
+    objects_detected: 'none',
+    text_extracted: 'ROAD CLOSED XYZ 1234',
+    confidence_score: 0.0,
+  },
+  {
+    incident_id: 'INC-002',
+    image_id: 'scene_crowd',
+    scene_type: 'Public Disturbance',
+    objects_detected: 'none',
+    text_extracted: 'PUBLIC AREA Zone B',
+    confidence_score: 0.0,
+  },
+  {
+    incident_id: 'INC-003',
+    image_id: 'scene_fire',
+    scene_type: 'Fire',
+    objects_detected: 'none',
+    text_extracted: 'DANGER FIRE ZONE',
+    confidence_score: 0.0,
+  },
+  {
+    incident_id: 'INC-004',
+    image_id: 'scene_theft',
+    scene_type: 'Assault or Theft',
+    objects_detected: 'none',
+    text_extracted: 'CCTV IN USE NO ENTRY',
+    confidence_score: 0.0,
+  },
+  {
+    incident_id: 'INC-005',
+    image_id: 'scene_vehicle',
+    scene_type: 'Accident',
+    objects_detected: 'none',
+    text_extracted: 'TRUCK-99 SPEED LIMIT 40',
+    confidence_score: 0.0,
+  },
+]
