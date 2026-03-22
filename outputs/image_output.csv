@@ -1,0 +1,6 @@
+Incident_ID,Image_ID,Scene_Type,Objects_Detected,Text_Extracted,Confidence_Score
+INC-001,scene_accident,Accident,none,OCR unavailable,0.0
+INC-002,scene_crowd,Public Disturbance,sports ball,OCR unavailable,0.34
+INC-003,scene_fire,Fire,none,OCR unavailable,0.0
+INC-004,scene_theft,Assault or Theft,none,OCR unavailable,0.0
+INC-005,scene_vehicle,Accident,"sports ball,sports ball",OCR unavailable,0.7

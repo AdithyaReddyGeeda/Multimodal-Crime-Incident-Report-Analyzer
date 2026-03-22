@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# ML / local weights (re-downloaded by ultralytics)
+yolov8n.pt
+*.pt
+
+# OS
+.DS_Store
