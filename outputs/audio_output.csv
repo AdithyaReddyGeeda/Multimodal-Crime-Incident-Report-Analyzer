@@ -1,0 +1,6 @@
+Incident_ID,Call_ID,Transcript,Extracted_Event,Location,Sentiment,Urgency_Score
+INC-001,call_001,Help! There's a massive fire at 45 Oak Street. The building is burning and people are trapped inside. Please hurry!,Fire,45 Oak Street,NEGATIVE,1.0
+INC-002,call_002,I want to report a car accident on Highway 9 near exit 12. Two vehicles are involved. One driver looks injured.,Road Accident,Highway 9,NEGATIVE,1.0
+INC-003,call_003,Someone just broke into the convenience store on Main Street. I saw two men running away with bags. They went north.,Theft,convenience store on Main Street,NEGATIVE,0.99
+INC-004,call_004,There's a large fight outside Central Park near the fountain. About ten people are involved. It's getting violent.,Public Disturbance,Central Park,NEGATIVE,1.0
+INC-005,call_005,I think I saw a suspicious person near the school on Elm Avenue. They were looking into car windows for about 20 minutes.,Suspicious Activity,Elm Avenue,NEGATIVE,1.0

@@ -1,9 +1,14 @@
 import { X } from 'lucide-react'
 import { sceneBadgeClasses } from '../utils/sceneColors.js'
 
+function isOcrUnavailableMessage(text) {
+  return typeof text === 'string' && text.startsWith('OCR unavailable')
+}
+
 function ConfidenceBar({ score }) {
-  const pct = Math.min(100, Math.max(0, Number(score) * 100))
-  const isZero = !score || score === 0
+  const n = Number(score)
+  const pct = Math.min(100, Math.max(0, n * 100))
+  const isZero = n === 0
 
   return (
     <div>
@@ -83,8 +88,14 @@ export default function IncidentModal({ incident, onClose }) {
             </div>
             <div>
               <dt className="text-gray-500">Text extracted</dt>
-              <dd className="text-gray-900 mt-0.5 break-words">
-                {incident.text_extracted}
+              <dd className="mt-0.5 break-words">
+                {isOcrUnavailableMessage(incident.text_extracted) ? (
+                  <span className="inline-flex max-w-full items-start rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-sm font-medium italic text-gray-500 break-words">
+                    {incident.text_extracted}
+                  </span>
+                ) : (
+                  <span className="text-gray-900">{incident.text_extracted}</span>
+                )}
               </dd>
             </div>
             <div>

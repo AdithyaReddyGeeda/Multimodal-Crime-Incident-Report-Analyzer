@@ -6,8 +6,9 @@ function truncate(str, max = 30) {
 }
 
 function ConfidenceCell({ score }) {
-  const pct = Math.min(100, Math.max(0, Number(score) * 100))
-  const isZero = !score || score === 0
+  const n = Number(score)
+  const pct = Math.min(100, Math.max(0, n * 100))
+  const isZero = n === 0
 
   return (
     <div className="min-w-[120px]">
@@ -24,6 +25,26 @@ function ConfidenceCell({ score }) {
       </p>
     </div>
   )
+}
+
+function isOcrUnavailableMessage(text) {
+  return typeof text === 'string' && text.startsWith('OCR unavailable')
+}
+
+function TextExtractedCell({ text }) {
+  if (isOcrUnavailableMessage(text)) {
+    const display =
+      text.length > 48 ? `${text.slice(0, 45)}…` : text
+    return (
+      <span
+        className="inline-flex max-w-full items-center rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-medium italic text-gray-500"
+        title={text}
+      >
+        {display}
+      </span>
+    )
+  }
+  return <span className="text-gray-700">{truncate(text)}</span>
 }
 
 export default function ImageTable({ rows, onView }) {
@@ -73,7 +94,7 @@ export default function ImageTable({ rows, onView }) {
                   )}
                 </td>
                 <td className="px-4 py-3 text-gray-700 max-w-[220px]">
-                  {truncate(row.text_extracted)}
+                  <TextExtractedCell text={row.text_extracted} />
                 </td>
                 <td className="px-4 py-3">
                   <ConfidenceCell score={row.confidence_score} />
