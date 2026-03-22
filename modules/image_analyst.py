@@ -2,20 +2,14 @@
 Multimodal Crime/Incident Report Analyzer — image pipeline.
 Self-contained; no side effects on import.
 
-Place images in data/images/, or set ROBOFLOW_API_KEY and configure
-download_roboflow_dataset() to fetch from Roboflow when the folder is empty.
+Inference: Roboflow hosted fire model, with local yolov8n.pt fallback.
+Images: fire-detection.v1i.yolov8/test/images/
 """
-
-# SETUP REQUIRED: Install Tesseract binary before running OCR
-# Mac:   brew install tesseract
-# Ubuntu: sudo apt install tesseract-ocr
-# Windows: https://github.com/UB-Mannheim/tesseract/wiki
 
 from __future__ import annotations
 
 import os
 import re
-import shutil
 import sys
 import warnings
 from pathlib import Path
@@ -26,155 +20,109 @@ import pytesseract
 
 _MODULE_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _MODULE_DIR.parent
-_DATA_IMAGES = _PROJECT_ROOT / "data" / "images"
-_ROBOFLOW_ROOT = _PROJECT_ROOT / "data" / "roboflow_dataset"
 _OUTPUTS = _PROJECT_ROOT / "outputs"
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(_PROJECT_ROOT / ".env")
+except ImportError:
+    pass  # pip install python-dotenv
+
 _IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
-_ROBOFLOW_COPY_LIMIT = 10
 
-_NO_IMAGES_MSG = (
-    "[Image Analyst] ❌ No images found in data/images/. \n"
-    "Please download the Roboflow fire detection dataset and place images there.\n"
-    "See: universe.roboflow.com — search \"fire detection\", download in YOLOv8 format."
+# --- Roboflow hosted model + local image folder (paths anchored to project root) ---
+# Set ROBOFLOW_API_KEY in .env (see .env.example) or export in the shell
+ROBOFLOW_API_KEY = (os.environ.get("ROBOFLOW_API_KEY") or "").strip()
+ROBOFLOW_WORKSPACE = "leilamegdiche"
+ROBOFLOW_PROJECT = "fire-detection-rsqrr"
+ROBOFLOW_VERSION = 1
+# Equivalent to Path("fire-detection.v1i.yolov8/test/images") when running from project root
+IMAGE_DIR = _PROJECT_ROOT / "fire-detection.v1i.yolov8" / "test" / "images"
+MAX_IMAGES = 15
+
+_TESSERACT_HINT = """[Image Analyst] ⚠️ Tesseract not found. Install it:
+  Mac:    brew install tesseract
+  Ubuntu: sudo apt install tesseract-ocr"""
+
+_MISSING_FOLDER_MSG = (
+    "[Image Analyst] ❌ Expected folder not found or empty:\n"
+    f"  {IMAGE_DIR.relative_to(_PROJECT_ROOT)}\n"
+    "Ensure fire-detection.v1i.yolov8 is present at the project root with test/images/."
 )
-
-_ROBOFLOW_NOT_CONFIGURED_MSG = """[Image Analyst] ❌ Roboflow not configured.
-Steps to fix:
-  1. pip install roboflow
-  2. Go to universe.roboflow.com → search "fire detection"
-  3. Pick a dataset with 1000+ images → Download → YOLOv8 format
-  4. Set your API key: export ROBOFLOW_API_KEY="your_key_here"
-  5. Update workspace and project name in download_roboflow_dataset()"""
 
 
 def _ensure_directories() -> None:
-    _DATA_IMAGES.mkdir(parents=True, exist_ok=True)
     _OUTPUTS.mkdir(parents=True, exist_ok=True)
 
 
-def _list_image_files() -> list[Path]:
-    if not _DATA_IMAGES.is_dir():
+def _list_sorted_test_images() -> list[Path]:
+    if not IMAGE_DIR.is_dir():
         return []
     out: list[Path] = []
-    for p in sorted(_DATA_IMAGES.iterdir()):
+    for p in sorted(IMAGE_DIR.iterdir()):
         if p.is_file() and p.suffix.lower() in _IMAGE_EXTENSIONS:
             out.append(p)
     return out
 
 
-def _find_split_images_dir(download_root: Path) -> Path | None:
-    for split in ("test", "valid"):
-        for p in download_root.rglob("images"):
-            if (
-                p.is_dir()
-                and p.parent.name.lower() == split
-                and p.name.lower() == "images"
-            ):
-                return p
-    return None
-
-
-def _roboflow_not_configured_exit() -> None:
-    print(_ROBOFLOW_NOT_CONFIGURED_MSG)
-    sys.exit(1)
-
-
-def download_roboflow_dataset() -> int:
+def classify_scene(detected_classes: str | list[str], filename: str = "") -> str:
     """
-    Download YOLOv8 dataset from Roboflow and copy the first _ROBOFLOW_COPY_LIMIT
-    images into data/images/. Exits the process if roboflow is missing or misconfigured.
+    Map detections to scene type (dataset: fire, smoke, light, no-fire).
+    Must check 'no-fire' before 'fire' — substring 'fire' appears inside 'no-fire'.
     """
-    try:
-        from roboflow import Roboflow
-    except ImportError:
-        _roboflow_not_configured_exit()
-
-    api_key = os.environ.get("ROBOFLOW_API_KEY", "").strip()
-    if not api_key:
-        _roboflow_not_configured_exit()
-
-    loc = str(_ROBOFLOW_ROOT.resolve())
-    _ROBOFLOW_ROOT.mkdir(parents=True, exist_ok=True)
-
-    try:
-        rf = Roboflow(api_key=api_key)
-        project = rf.workspace("YOUR_WORKSPACE").project("YOUR_PROJECT")
-        version = project.version(1)
-        version.download("yolov8", location=loc)
-    except Exception as e:
-        print(_ROBOFLOW_NOT_CONFIGURED_MSG)
-        print(f"[Image Analyst] Detail: {e}")
-        sys.exit(1)
-
-    split_dir = _find_split_images_dir(_ROBOFLOW_ROOT)
-    if split_dir is None:
-        print(_ROBOFLOW_NOT_CONFIGURED_MSG)
-        print(
-            "[Image Analyst] Detail: could not find test/images or valid/images "
-            "under the downloaded dataset.",
-        )
-        sys.exit(1)
-
-    sources: list[Path] = []
-    for p in sorted(split_dir.iterdir()):
-        if p.is_file() and p.suffix.lower() in _IMAGE_EXTENSIONS:
-            sources.append(p)
-    sources = sources[:_ROBOFLOW_COPY_LIMIT]
-
-    if not sources:
-        print(_ROBOFLOW_NOT_CONFIGURED_MSG)
-        print("[Image Analyst] Detail: no .jpg/.jpeg/.png files in split folder.")
-        sys.exit(1)
-
-    n = 0
-    used_names: set[str] = set()
-    for src in sources:
-        dest_name = src.name
-        if dest_name in used_names:
-            dest_name = f"{src.stem}_{n}{src.suffix}"
-        used_names.add(dest_name)
-        shutil.copy2(src, _DATA_IMAGES / dest_name)
-        n += 1
-
-    rel = _DATA_IMAGES.relative_to(_PROJECT_ROOT)
-    print(f"[Image Analyst] Copied {n} images from Roboflow into {rel}/")
-    return n
-
-
-def classify_scene(detected_classes: str | list[str]) -> str:
-    """Classify incident scene from YOLO class names (no filename-based inference)."""
-    if isinstance(detected_classes, str):
-        s = detected_classes.strip().lower()
-        if s in ("none", "detection unavailable", ""):
-            classes_lower: list[str] = []
-        else:
-            classes_lower = [c.strip().lower() for c in detected_classes.split(",") if c.strip()]
+    _ = filename
+    if isinstance(detected_classes, list):
+        classes = ",".join(str(c) for c in detected_classes).lower()
     else:
-        classes_lower = [c.strip().lower() for c in detected_classes if c and str(c).strip()]
-
-    if not classes_lower:
+        classes = str(detected_classes).strip().lower()
+    if classes in ("none", "detection unavailable", ""):
         return "Unknown"
-
-    fire_set = {"fire", "smoke", "flame"}
-    if any(c in fire_set for c in classes_lower):
+    if "no-fire" in classes:
+        return "No Fire Detected"
+    if "fire" in classes or "smoke" in classes or "light" in classes:
         return "Fire"
-
-    vehicle_set = {"car", "truck", "bus", "bicycle", "motorcycle"}
-    person_count = sum(1 for c in classes_lower if c == "person")
-
-    if any(c in vehicle_set for c in classes_lower):
+    if "car" in classes or "truck" in classes:
         return "Accident"
-    has_knife = "knife" in classes_lower
-    has_gun = "gun" in classes_lower
-    if person_count >= 1 and (has_knife or has_gun):
-        return "Assault or Theft"
-    if person_count >= 3:
-        return "Public Disturbance"
-    if person_count == 1:
+    if "person" in classes:
         return "Suspicious Activity"
-
     return "Unknown"
+
+
+def _normalize_confidence(c: float) -> float:
+    if c > 1.0:
+        return min(1.0, c / 100.0)
+    return float(c)
+
+
+def _roboflow_result_to_detections(result: dict) -> tuple[str, float, bool]:
+    predictions = result.get("predictions", [])
+    if not predictions:
+        return "none", 0.0, True
+    names: list[str] = []
+    confs: list[float] = []
+    for p in predictions:
+        cls_name = p.get("class") or p.get("class_name") or ""
+        if cls_name:
+            names.append(str(cls_name))
+        c = p.get("confidence", 0.0)
+        try:
+            confs.append(_normalize_confidence(float(c)))
+        except (TypeError, ValueError):
+            confs.append(0.0)
+    if not names:
+        return "none", 0.0, True
+    avg_conf = round(sum(confs) / len(confs), 2)
+    return ",".join(names), avg_conf, True
+
+
+def _run_roboflow_predict(rf_model: object, path: Path) -> tuple[str, float, bool]:
+    # result = model.predict(...).json()  ->  {"predictions": [{class, confidence}, ...]}
+    p = rf_model.predict(str(path), confidence=40, overlap=30)
+    result = p.json() if hasattr(p, "json") else (p if isinstance(p, dict) else {})
+    if not isinstance(result, dict):
+        result = {}
+    return _roboflow_result_to_detections(result)
 
 
 def _run_yolo_on_image(
@@ -204,6 +152,24 @@ def _run_yolo_on_image(
         return "detection unavailable", 0.0, False
 
 
+def _detection_for_image(
+    rf_model: object | None,
+    fallback_yolo: object | None,
+    path: Path,
+) -> tuple[str, float, bool]:
+    if rf_model is not None:
+        try:
+            return _run_roboflow_predict(rf_model, path)
+        except Exception as e:
+            warnings.warn(
+                f"Roboflow inference failed for {path.name} ({e}); using yolov8n.pt fallback.",
+                stacklevel=2,
+            )
+    if fallback_yolo is not None:
+        return _run_yolo_on_image(fallback_yolo, path)
+    return "detection unavailable", 0.0, False
+
+
 def _ocr_image(path: Path) -> str:
     try:
         img = cv2.imread(str(path))
@@ -211,24 +177,22 @@ def _ocr_image(path: Path) -> str:
             return "none"
         try:
             raw = pytesseract.image_to_string(img)
-        except Exception as e:
-            err = str(e).strip().replace("\n", " ")
-            print(f"[Image Analyst] OCR error: {err}")
-            return f"OCR unavailable: {err}"
+        except Exception:
+            print(_TESSERACT_HINT, flush=True)
+            return "OCR unavailable"
         text = " ".join(raw.split())
         text = re.sub(r"[^\x00-\x7F]+", "", text)
         text = text.strip()
         return text if text else "none"
-    except Exception as e:
-        err = str(e).strip().replace("\n", " ")
-        print(f"[Image Analyst] OCR step failed: {err}")
-        return f"OCR unavailable: {err}"
+    except Exception:
+        print(_TESSERACT_HINT, flush=True)
+        return "OCR unavailable"
 
 
 def _process_one_image(
     path: Path,
-    model: object | None,
-    yolo_failed_globally: bool,
+    rf_model: object | None,
+    fallback_yolo: object | None,
     index: int,
 ) -> dict[str, object]:
     row: dict[str, object] = {
@@ -240,20 +204,15 @@ def _process_one_image(
         "Confidence_Score": 0.0,
     }
     try:
-        if yolo_failed_globally or model is None:
+        objs, conf, ok = _detection_for_image(rf_model, fallback_yolo, path)
+        row["Objects_Detected"] = objs
+        row["Confidence_Score"] = conf
+        if not ok or objs == "detection unavailable":
             row["Objects_Detected"] = "detection unavailable"
             row["Confidence_Score"] = 0.0
             row["Scene_Type"] = classify_scene("detection unavailable")
         else:
-            objs, conf, ok = _run_yolo_on_image(model, path)
-            row["Objects_Detected"] = objs
-            row["Confidence_Score"] = conf
-            if not ok or objs == "detection unavailable":
-                row["Objects_Detected"] = "detection unavailable"
-                row["Confidence_Score"] = 0.0
-                row["Scene_Type"] = classify_scene("detection unavailable")
-            else:
-                row["Scene_Type"] = classify_scene(objs)
+            row["Scene_Type"] = classify_scene(objs)
 
         row["Text_Extracted"] = _ocr_image(path)
     except Exception as e:
@@ -266,29 +225,58 @@ def _process_one_image(
 
 def run_image_pipeline() -> None:
     _ensure_directories()
-    image_paths = _list_image_files()
-    if not image_paths:
-        download_roboflow_dataset()
-        image_paths = _list_image_files()
 
-    if not image_paths:
-        print(_NO_IMAGES_MSG)
-        raise RuntimeError("No images found in data/images/")
+    print(
+        "[Image Analyst] Loading real fire detection images from "
+        "fire-detection.v1i.yolov8/test/images/",
+        flush=True,
+    )
 
-    model = None
-    yolo_failed_globally = False
+    all_sorted = _list_sorted_test_images()
+    total = len(all_sorted)
+    if total == 0:
+        print(_MISSING_FOLDER_MSG)
+        sys.exit(1)
+
+    print(
+        f"[Image Analyst] Found {total} images. Processing first {MAX_IMAGES}...",
+        flush=True,
+    )
+
+    image_paths = all_sorted[:MAX_IMAGES]
+
+    rf_model = None
+    try:
+        from roboflow import Roboflow
+
+        if not ROBOFLOW_API_KEY:
+            warnings.warn(
+                "ROBOFLOW_API_KEY not set; using yolov8n.pt only. "
+                "Add it to .env or export ROBOFLOW_API_KEY (see .env.example).",
+                stacklevel=2,
+            )
+        else:
+            rf = Roboflow(api_key=ROBOFLOW_API_KEY)
+            project = rf.workspace(ROBOFLOW_WORKSPACE).project(ROBOFLOW_PROJECT)
+            rf_model = project.version(ROBOFLOW_VERSION).model
+    except Exception as e:
+        warnings.warn(f"Roboflow model unavailable ({e}); will use yolov8n.pt fallback.", stacklevel=2)
+
+    fallback_yolo = None
     try:
         from ultralytics import YOLO
 
-        model = YOLO("yolov8n.pt")
+        fallback_yolo = YOLO("yolov8n.pt")
     except Exception as e:
-        warnings.warn(f"YOLOv8 unavailable ({e}); scene type will be Unknown.", stacklevel=2)
-        yolo_failed_globally = True
+        warnings.warn(f"yolov8n.pt unavailable ({e}).", stacklevel=2)
+
+    if rf_model is None and fallback_yolo is None:
+        warnings.warn("No inference backend available.", stacklevel=2)
 
     rows: list[dict[str, object]] = []
     for i, path in enumerate(image_paths, start=1):
         try:
-            rows.append(_process_one_image(path, model, yolo_failed_globally, i))
+            rows.append(_process_one_image(path, rf_model, fallback_yolo, i))
         except Exception as e:
             warnings.warn(f"Skipping {path}: {e}", stacklevel=2)
 

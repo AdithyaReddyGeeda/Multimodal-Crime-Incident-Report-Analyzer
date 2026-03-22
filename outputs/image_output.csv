@@ -1,6 +1,16 @@
 Incident_ID,Image_ID,Scene_Type,Objects_Detected,Text_Extracted,Confidence_Score
-INC-001,scene_accident,Accident,none,OCR unavailable,0.0
-INC-002,scene_crowd,Public Disturbance,sports ball,OCR unavailable,0.34
-INC-003,scene_fire,Fire,none,OCR unavailable,0.0
-INC-004,scene_theft,Assault or Theft,none,OCR unavailable,0.0
-INC-005,scene_vehicle,Accident,"sports ball,sports ball",OCR unavailable,0.7
+INC-001,fire-101-_preprocessed_jpg.rf.34c87ad56fdde2e6abf2827b42c865ce,Fire,fire,none,0.9
+INC-002,fire-106-_preprocessed_jpg.rf.986a6ba61306d472dedbae010527864d,Fire,fire,none,0.92
+INC-003,fire-107-_preprocessed_jpg.rf.2466948564a885109b0807c0f296284a,Fire,fire,none,0.88
+INC-004,fire-13-_preprocessed_jpg.rf.f4356cf13ffccdfec787a57a646593d6,Fire,smoke,none,0.89
+INC-005,fire-131-_preprocessed_jpg.rf.27bc5bb6ac2cb59f6ede6852deb7a552,Fire,fire,none,0.77
+INC-006,fire-134-_preprocessed_jpg.rf.2913729e96ea49792b00aca74c8dd400,Fire,fire,none,0.85
+INC-007,fire-152-_preprocessed_jpg.rf.9708e6d2660929a3a68f8a92fcd61662,Fire,fire,none,0.85
+INC-008,fire-158-_preprocessed_jpg.rf.1894e30fed5d6a1d8ac0d5e114c5048c,Fire,fire,none,0.81
+INC-009,fire-176-_preprocessed_jpg.rf.66b1fac49283bfbbfa1cd2c308f61c80,Fire,fire,5 it 7a. =,0.5
+INC-010,fire-18-_preprocessed_jpg.rf.3cb10cddb19b3bb3c65b430c842e2174,Fire,fire,none,0.66
+INC-011,fire-180-_preprocessed_jpg.rf.f46681e277d141313468348488a0019c,Fire,fire,none,0.63
+INC-012,fire-184-_preprocessed_jpg.rf.4432e8ef9b7acfc7a7f4e81d2df23d5f,Unknown,none,NG 2 ae : p : z a ae Jawa ree a ul oR Le 4 eee ee See ee ee ae eee 4 . DG 7 Soe a 7 Pate A es G61. oer +,0.0
+INC-013,fire-187-_preprocessed_jpg.rf.4fa34f88e6f45656d64e38f9d4d25b37,Unknown,none,none,0.0
+INC-014,fire-195-_preprocessed_jpg.rf.cad16b34019a48b4f6baf3a4b3ea1fdd,Unknown,none,none,0.0
+INC-015,fire-199-_preprocessed_jpg.rf.84eb1529748b89f93caec6fe0f534f5b,Unknown,none,none,0.0

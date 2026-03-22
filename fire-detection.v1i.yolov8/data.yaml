@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 4
+names: ['fire', 'light', 'no-fire', 'smoke']
+
+roboflow:
+  workspace: leilamegdiche
+  project: fire-detection-rsqrr
+  version: 1
+  license: Public Domain
+  url: https://universe.roboflow.com/leilamegdiche/fire-detection-rsqrr/dataset/1

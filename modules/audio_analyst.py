@@ -16,6 +16,14 @@ import pandas as pd
 
 _MODULE_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _MODULE_DIR.parent
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(_PROJECT_ROOT / ".env")
+except ImportError:
+    pass
+
 _DATA_AUDIO = _PROJECT_ROOT / "data" / "audio"
 _TRANSCRIPTS_CSV = _DATA_AUDIO / "transcripts.csv"
 _OUTPUTS = _PROJECT_ROOT / "outputs"
