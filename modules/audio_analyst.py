@@ -2,7 +2,7 @@
 Multimodal Crime/Incident Report Analyzer — audio pipeline (Module 1).
 Self-contained; no side effects on import.
 
-Place Kaggle transcript CSV at data/audio/transcripts.csv (see assignment instructions).
+Reads data/audio/transcripts.csv (e.g. from transcribe_audio.py or Kaggle export).
 """
 
 from __future__ import annotations
@@ -32,11 +32,8 @@ _MAX_ROWS = 10
 
 _NO_TRANSCRIPTS_MSG = """[Audio Analyst] ❌ No transcripts file found at data/audio/transcripts.csv
 Steps to fix:
-  1. Go to kaggle.com/code/stpeteishii/911-calls-wav2vec2
-  2. Sign in to Kaggle → click "Copy and Edit" to fork the notebook
-  3. Run it on free Kaggle GPU — it transcribes real 911 calls using Wav2Vec2
-  4. Download the output CSV from the notebook
-  5. Place it at data/audio/transcripts.csv"""
+  • Run: python transcribe_audio.py   (Whisper — needs .mp3/.wav in data/audio/)
+  • Or download CSV from kaggle.com/code/stpeteishii/911-calls-wav2vec2 and save as data/audio/transcripts.csv"""
 
 _URGENCY_WORDS = (
     "help",
@@ -46,6 +43,8 @@ _URGENCY_WORDS = (
     "urgent",
     "violent",
     "injured",
+    "dead",
+    "dying",
 )
 
 _STREET_REGEX = re.compile(
@@ -53,6 +52,7 @@ _STREET_REGEX = re.compile(
     re.IGNORECASE,
 )
 _HIGHWAY_REGEX = re.compile(r"\bHighway\s+\d+\b", re.IGNORECASE)
+_EXIT_REGEX = re.compile(r"\bExit\s+\d+\b", re.IGNORECASE)
 
 
 def _ensure_directories() -> None:
@@ -81,7 +81,7 @@ def _normalize_transcript_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 def _regex_locations(text: str) -> list[str]:
     found: list[str] = []
-    for rx in (_STREET_REGEX, _HIGHWAY_REGEX):
+    for rx in (_STREET_REGEX, _HIGHWAY_REGEX, _EXIT_REGEX):
         for m in rx.finditer(text):
             s = m.group(0).strip()
             if s and s not in found:
@@ -107,15 +107,28 @@ def _extract_location(transcript: str, nlp) -> str:
     return "Unknown"
 
 
+def _word_in_text(t_lower: str, phrase: str) -> bool:
+    """Match phrase with word boundaries (avoids 'car' in 'scare')."""
+    if " " in phrase.strip():
+        return phrase.lower() in t_lower
+    return re.search(rf"\b{re.escape(phrase.lower())}\b", t_lower) is not None
+
+
+def _any_keyword(t_lower: str, keywords: tuple[str, ...]) -> bool:
+    return any(_word_in_text(t_lower, k) for k in keywords)
+
+
 def _classify_event(transcript: str) -> str:
     t = transcript.lower()
-    if any(k in t for k in ("fire", "burning", "flames")):
+    if _any_keyword(t, ("fire", "burning", "flames", "smoke")):
         return "Fire"
-    if any(k in t for k in ("accident", "crash", "collision", "vehicle")):
+    if _any_keyword(t, ("accident", "crash", "collision", "car", "vehicle")):
         return "Road Accident"
-    if any(k in t for k in ("broke", "theft", "stolen", "robbery")):
+    if _any_keyword(t, ("stab", "shoot", "gun", "weapon", "assault", "knife")):
+        return "Assault"
+    if _any_keyword(t, ("broke", "theft", "stolen", "robbery", "burglary")):
         return "Theft"
-    if any(k in t for k in ("fight", "violent", "assault")):
+    if _any_keyword(t, ("fight", "violent", "disturbance", "brawl")):
         return "Public Disturbance"
     if "suspicious" in t:
         return "Suspicious Activity"
@@ -123,7 +136,7 @@ def _classify_event(transcript: str) -> str:
 
 
 def _urgency_word_boost(transcript: str) -> float:
-    """+0.1 for each of the urgency words that appears at least once."""
+    """+0.1 for each urgency word that appears at least once."""
     t = transcript.lower()
     boost = 0.0
     for w in _URGENCY_WORDS:

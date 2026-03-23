@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
+import { audioResults } from './data/audioResults.js'
 import { imageResults } from './data/imageResults.js'
+import AudioTable from './components/AudioTable.jsx'
 import Header from './components/Header.jsx'
 import StatsBar from './components/StatsBar.jsx'
 import SceneChart from './components/SceneChart.jsx'
@@ -56,7 +58,9 @@ export default function App() {
 
       <div className="max-w-6xl mx-auto px-4 pb-10">
         <div className="my-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 text-sm font-medium text-center">
-          ⚠️ More modules coming soon
+          Image (Module 3) and audio transcripts (Module 1) below — run{' '}
+          <code className="text-xs bg-amber-100/80 px-1 rounded">sync_dashboard_data.py</code> after
+          pipelines
         </div>
 
         <StatsBar stats={stats} />
@@ -84,6 +88,8 @@ export default function App() {
           rows={filteredRows}
           onView={(row) => setSelectedIncident(row)}
         />
+
+        <AudioTable rows={audioResults} />
       </div>
 
       {selectedIncident && (

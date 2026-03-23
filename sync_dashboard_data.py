@@ -1,4 +1,4 @@
-"""Sync outputs/image_output.csv → dashboard/src/data/imageResults.js"""
+"""Sync outputs/*.csv → dashboard/src/data/*.js for the React dashboard."""
 
 import json
 from pathlib import Path
@@ -6,17 +6,18 @@ from pathlib import Path
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-CSV_PATH = PROJECT_ROOT / "outputs" / "image_output.csv"
-OUTPUT_JS = PROJECT_ROOT / "dashboard" / "src" / "data" / "imageResults.js"
+IMAGE_CSV = PROJECT_ROOT / "outputs" / "image_output.csv"
+AUDIO_CSV = PROJECT_ROOT / "outputs" / "audio_output.csv"
+IMAGE_JS = PROJECT_ROOT / "dashboard" / "src" / "data" / "imageResults.js"
+AUDIO_JS = PROJECT_ROOT / "dashboard" / "src" / "data" / "audioResults.js"
 
 
-def sync() -> None:
-    if not CSV_PATH.exists():
-        print(f"❌ CSV not found at {CSV_PATH}. Run python modules/image_analyst.py first.")
-        return
+def sync_image() -> bool:
+    if not IMAGE_CSV.exists():
+        print(f"❌ Image CSV not found at {IMAGE_CSV}. Run: python modules/image_analyst.py")
+        return False
 
-    df = pd.read_csv(CSV_PATH)
-
+    df = pd.read_csv(IMAGE_CSV)
     records = []
     for _, row in df.iterrows():
         records.append(
@@ -31,9 +32,42 @@ def sync() -> None:
         )
 
     js_content = "export const imageResults = " + json.dumps(records, indent=2) + ";\n"
-    OUTPUT_JS.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_JS.write_text(js_content, encoding="utf-8")
-    print(f"✅ Synced {len(records)} incidents to {OUTPUT_JS}")
+    IMAGE_JS.parent.mkdir(parents=True, exist_ok=True)
+    IMAGE_JS.write_text(js_content, encoding="utf-8")
+    print(f"✅ Synced {len(records)} image rows → {IMAGE_JS.relative_to(PROJECT_ROOT)}")
+    return True
+
+
+def sync_audio() -> bool:
+    if not AUDIO_CSV.exists():
+        print(f"❌ Audio CSV not found at {AUDIO_CSV}. Run: python modules/audio_analyst.py")
+        return False
+
+    df = pd.read_csv(AUDIO_CSV)
+    records = []
+    for _, row in df.iterrows():
+        records.append(
+            {
+                "incident_id": row["Incident_ID"],
+                "call_id": row["Call_ID"],
+                "transcript": row["Transcript"],
+                "extracted_event": row["Extracted_Event"],
+                "location": row["Location"],
+                "sentiment": row["Sentiment"],
+                "urgency_score": round(float(row["Urgency_Score"]), 2),
+            }
+        )
+
+    js_content = "export const audioResults = " + json.dumps(records, indent=2) + ";\n"
+    AUDIO_JS.parent.mkdir(parents=True, exist_ok=True)
+    AUDIO_JS.write_text(js_content, encoding="utf-8")
+    print(f"✅ Synced {len(records)} audio rows → {AUDIO_JS.relative_to(PROJECT_ROOT)}")
+    return True
+
+
+def sync() -> None:
+    sync_image()
+    sync_audio()
     print("   Run: cd dashboard && npm run dev")
 
 
