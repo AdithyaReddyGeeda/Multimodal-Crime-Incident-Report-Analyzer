@@ -1,6 +1,6 @@
 # Multimodal Crime / Incident Report Analyzer
 
-Python pipelines and a React dashboard for analyzing incident-related **images** (fire detection, OCR) and **911 call transcripts** (NER, event types, sentiment, urgency). Outputs are CSV files you can merge or feed into the dashboard.
+Python pipelines and a React dashboard for analyzing incident-related **images** (fire detection, OCR), **911 call transcripts** (NER, event types, sentiment, urgency), and **CCTV videos** (motion + YOLO events). Outputs are CSV files you can merge or feed into the dashboard.
 
 **Repository:** [Multimodal-Crime-Incident-Report-Analyzer](https://github.com/AdithyaReddyGeeda/Multimodal-Crime-Incident-Report-Analyzer)
 
@@ -23,10 +23,20 @@ Python pipelines and a React dashboard for analyzing incident-related **images**
 - **Processing:** spaCy NER (`en_core_web_sm`) for **GPE** / **LOC** plus regex fallbacks for streets and exits; keyword-based **event type** (Fire, Road Accident, Assault, Theft, Public Disturbance, Suspicious Activity, or Unknown); Hugging Face **DistilBERT** sentiment (`distilbert-base-uncased-finetuned-sst-2-english`) with an **urgency score** (0–1) and keyword boosts; fallback urgency if the model fails to load.
 - **Output:** `outputs/audio_output.csv` — `Incident_ID`, `Call_ID`, `Transcript`, `Extracted_Event`, `Location`, `Sentiment`, `Urgency_Score`.
 
+### Module 4 — Video analysis (`modules/video_analyst.py`)
+
+- **Input:** CCTV clips from `data/videos/` (CAVIAR dataset; start with `.mpg` clips).
+- **Processing:** OpenCV frame extraction (default every 10 frames), motion detection via frame differencing (thresholded pixel-change ratio), and YOLOv8 (`yolov8n.pt`) only on motion-flagged frames.
+- **Event classification:** Rule-based mapping to `Person Movement`, `Vehicle Movement`, `Crowd Gathering`, `Anomaly Detected`, or `No Event`.
+- **Output:** `outputs/video_output.csv` — `Incident_ID`, `Timestamp`, `Frame_ID`, `Event_Detected`, `Objects`, `Confidence`.
+
 ### Dashboard (`dashboard/`)
 
-- React + Vite + Tailwind: charts and tables for **image** results (`dashboard/src/data/imageResults.js`) and **audio** results (`dashboard/src/data/audioResults.js`).
-- **Sync CSV → dashboard:** After regenerating outputs, run **`python sync_dashboard_data.py`** so both `outputs/image_output.csv` and `outputs/audio_output.csv` are reflected in the UI (no manual copy-paste).
+- React + Vite + Tailwind unified incident dashboard for **audio**, **image**, and **video** results:
+  - `dashboard/src/data/imageResults.js`
+  - `dashboard/src/data/audioResults.js`
+  - `dashboard/src/data/videoResults.js`
+- **Sync CSV → dashboard:** after regenerating outputs, run **`python sync_dashboard_data.py`** so all module outputs are reflected in the UI (no manual copy-paste).
 
 ---
 
@@ -97,13 +107,24 @@ Writes **`outputs/image_output.csv`** and prints a summary table.
 
 Writes **`outputs/audio_output.csv`** and prints the full DataFrame.
 
+### Video pipeline
+
+1. Ensure CCTV clips exist in **`data/videos/`** (for example, from CAVIAR).
+2. Run:
+
+   ```bash
+   python3 modules/video_analyst.py
+   ```
+
+Writes **`outputs/video_output.csv`** with one row per detected incident event.
+
 ### Sync dashboard with CSV outputs
 
 ```bash
 python3 sync_dashboard_data.py
 ```
 
-Updates **`dashboard/src/data/imageResults.js`** and **`dashboard/src/data/audioResults.js`** from the CSVs (prints a message if a CSV is missing).
+Updates **`dashboard/src/data/imageResults.js`**, **`dashboard/src/data/audioResults.js`**, and **`dashboard/src/data/videoResults.js`** from the CSVs (prints a message if a CSV is missing).
 
 ### View dashboard
 
@@ -134,12 +155,21 @@ python3 sync_dashboard_data.py
 cd dashboard && npm run dev
 ```
 
-**Full stack (image + audio):**
+**Video (analyst → UI):**
+
+```bash
+python3 modules/video_analyst.py
+python3 sync_dashboard_data.py
+cd dashboard && npm run dev
+```
+
+**Full stack (image + audio + video):**
 
 ```bash
 python3 modules/image_analyst.py
 python3 transcribe_audio.py
 python3 modules/audio_analyst.py
+python3 modules/video_analyst.py
 python3 sync_dashboard_data.py
 cd dashboard && npm run dev
 ```
@@ -152,12 +182,14 @@ cd dashboard && npm run dev
 |------|---------|
 | `modules/image_analyst.py` | Image inference, classification, OCR → CSV |
 | `modules/audio_analyst.py` | Transcript NER, events, sentiment, urgency → CSV |
+| `modules/video_analyst.py` | Motion + YOLO CCTV event detection → CSV |
 | `transcribe_audio.py` | Whisper: `data/audio/*.mp3|wav` → `data/audio/transcripts.csv` |
-| `sync_dashboard_data.py` | Syncs `outputs/image_output.csv` and `outputs/audio_output.csv` → `dashboard/src/data/*.js` |
+| `sync_dashboard_data.py` | Syncs image/audio/video CSV outputs → `dashboard/src/data/*.js` |
 | `fire-detection.v1i.yolov8/` | Roboflow fire dataset (e.g. `test/images/`) |
 | `data/audio/` | Audio files and `transcripts.csv` input for Module 1 |
-| `outputs/` | `image_output.csv`, `audio_output.csv` |
-| `dashboard/` | React frontend (`imageResults.js`, `audioResults.js`) |
+| `data/videos/` | CCTV clips input for Module 4 |
+| `outputs/` | `image_output.csv`, `audio_output.csv`, `video_output.csv` |
+| `dashboard/` | React frontend (`imageResults.js`, `audioResults.js`, `videoResults.js`) |
 | `.env` / `.env.example` | Local secrets (not committed) vs template |
 | `requirements.txt` | Python dependencies |
 

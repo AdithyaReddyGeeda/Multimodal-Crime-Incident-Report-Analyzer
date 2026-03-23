@@ -1,26 +1,26 @@
 export default function StatsBar({ stats }) {
-  const { total, fires, accidents, other } = stats
+  const { total, imageCount, audioCount, videoCount } = stats
 
   const cards = [
     {
-      label: 'Total Images Processed',
+      label: 'Total Incidents',
       value: total,
       borderClass: 'border-l-4 border-gray-300',
     },
     {
-      label: 'Fires Detected',
-      value: fires,
-      borderClass: 'border-l-4 border-red-500',
+      label: 'Image Incidents',
+      value: imageCount,
+      borderClass: 'border-l-4 border-green-500',
     },
     {
-      label: 'Accidents',
-      value: accidents,
-      borderClass: 'border-l-4 border-yellow-400',
-    },
-    {
-      label: 'Other Scenes',
-      value: other,
+      label: 'Audio Incidents',
+      value: audioCount,
       borderClass: 'border-l-4 border-blue-500',
+    },
+    {
+      label: 'Video Incidents',
+      value: videoCount,
+      borderClass: 'border-l-4 border-purple-500',
     },
   ]
 

@@ -29,6 +29,8 @@ function ConfidenceBar({ score }) {
 
 export default function IncidentModal({ incident, onClose }) {
   if (!incident) return null
+  const isAudio = incident.source === 'Audio'
+  const isVideo = incident.source === 'Video'
 
   return (
     <div
@@ -59,52 +61,117 @@ export default function IncidentModal({ incident, onClose }) {
         >
           {incident.incident_id}
         </h2>
-        <p className="text-gray-500 mt-1">{incident.image_id}</p>
+        <p className="text-gray-500 mt-1">
+          Source: {incident.source}{' '}
+          {isAudio
+            ? `• ${incident.call_id}`
+            : isVideo
+              ? `• ${incident.frame_id}`
+              : `• ${incident.image_id}`}
+        </p>
 
         <div className="mt-6 space-y-4">
-          <h3 className="text-sm font-semibold text-gray-700">
-            🖼️ Image Analysis
-          </h3>
-          <dl className="space-y-3 text-sm">
-            <div className="flex flex-wrap gap-2 justify-between">
-              <dt className="text-gray-500">Scene type</dt>
-              <dd>
-                <span
-                  className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${sceneBadgeClasses(incident.scene_type)}`}
-                >
-                  {incident.scene_type}
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">Objects detected</dt>
-              <dd className="text-gray-900 mt-0.5">
-                {incident.objects_detected === 'none' ? (
-                  <span className="text-gray-400 italic">—</span>
-                ) : (
-                  incident.objects_detected
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">Text extracted</dt>
-              <dd className="mt-0.5 break-words">
-                {isOcrUnavailableMessage(incident.text_extracted) ? (
-                  <span className="inline-flex max-w-full items-start rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-sm font-medium italic text-gray-500 break-words">
-                    {incident.text_extracted}
-                  </span>
-                ) : (
-                  <span className="text-gray-900">{incident.text_extracted}</span>
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-gray-500 mb-2">Confidence</dt>
-              <dd>
-                <ConfidenceBar score={incident.confidence_score} />
-              </dd>
-            </div>
-          </dl>
+          {isAudio ? (
+            <>
+              <h3 className="text-sm font-semibold text-gray-700">Audio analysis</h3>
+              <dl className="space-y-3 text-sm">
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Extracted event</dt>
+                  <dd className="text-gray-900">{incident.extracted_event}</dd>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Location</dt>
+                  <dd className="text-gray-900">{incident.location || 'Unknown'}</dd>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Sentiment</dt>
+                  <dd className="text-gray-900">{incident.sentiment}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">Transcript</dt>
+                  <dd className="text-gray-900 mt-0.5 break-words">{incident.transcript}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 mb-2">Urgency</dt>
+                  <dd>
+                    <ConfidenceBar score={incident.urgency_score} />
+                  </dd>
+                </div>
+              </dl>
+            </>
+          ) : isVideo ? (
+            <>
+              <h3 className="text-sm font-semibold text-gray-700">Video analysis</h3>
+              <dl className="space-y-3 text-sm">
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Timestamp</dt>
+                  <dd className="text-gray-900">{incident.timestamp}s</dd>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Frame ID</dt>
+                  <dd className="text-gray-900">{incident.frame_id}</dd>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Event detected</dt>
+                  <dd className="text-gray-900">{incident.event_detected}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">Objects</dt>
+                  <dd className="text-gray-900 mt-0.5">{incident.objects || 'none'}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 mb-2">Confidence</dt>
+                  <dd>
+                    <ConfidenceBar score={incident.confidence} />
+                  </dd>
+                </div>
+              </dl>
+            </>
+          ) : (
+            <>
+              <h3 className="text-sm font-semibold text-gray-700">Image analysis</h3>
+              <dl className="space-y-3 text-sm">
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Scene type</dt>
+                  <dd>
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${sceneBadgeClasses(incident.scene_type)}`}
+                    >
+                      {incident.scene_type}
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">Objects detected</dt>
+                  <dd className="text-gray-900 mt-0.5">
+                    {incident.objects_detected === 'none' ? (
+                      <span className="text-gray-400 italic">—</span>
+                    ) : (
+                      incident.objects_detected
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">Text extracted</dt>
+                  <dd className="mt-0.5 break-words">
+                    {isOcrUnavailableMessage(incident.text_extracted) ? (
+                      <span className="inline-flex max-w-full items-start rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-sm font-medium italic text-gray-500 break-words">
+                        {incident.text_extracted}
+                      </span>
+                    ) : (
+                      <span className="text-gray-900">{incident.text_extracted}</span>
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 mb-2">Confidence</dt>
+                  <dd>
+                    <ConfidenceBar score={incident.confidence_score} />
+                  </dd>
+                </div>
+              </dl>
+            </>
+          )}
         </div>
       </div>
     </div>
