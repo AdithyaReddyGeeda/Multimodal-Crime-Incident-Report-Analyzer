@@ -1,6 +1,7 @@
 """
 Multimodal Crime/Incident Report Analyzer — video pipeline (Module 4).
-Processes CCTV video clips from data/videos/ using motion detection + YOLO.
+Processes all CCTV clips in data/videos/ (motion + YOLO). One row per detected event.
+Incident_ID: VID-001, VID-002, ... globally across all videos.
 """
 
 from __future__ import annotations
@@ -96,8 +97,12 @@ def _run_yolo(model, frame) -> tuple[list[str], float, int]:
 
 
 def _process_video(
-    video_path: Path, model, incident_counter: int, frame_interval: int = 10
+    video_path: Path,
+    model,
+    incident_counter: int,
+    frame_interval: int = 10,
 ) -> tuple[list[dict[str, object]], int]:
+    """Return one row per non–No Event detection; advance global VID counter."""
     rows: list[dict[str, object]] = []
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
@@ -110,6 +115,7 @@ def _process_video(
     prev_gray = None
     prev_motion_ratio = 0.0
     frame_id = -1
+
     while True:
         ok, frame = cap.read()
         if not ok:
@@ -128,14 +134,16 @@ def _process_video(
         rapid_motion_change = abs(motion_ratio - prev_motion_ratio) >= 0.03
         prev_motion_ratio = motion_ratio
 
-        event = classify_event(classes, motion=True, person_count=person_count, rapid_motion_change=rapid_motion_change)
+        event = classify_event(
+            classes, motion=True, person_count=person_count, rapid_motion_change=rapid_motion_change
+        )
         if event == "No Event":
             continue
 
         timestamp = round(frame_id / fps, 2)
         rows.append(
             {
-                "Incident_ID": f"INC-{incident_counter:03d}",
+                "Incident_ID": f"VID-{incident_counter:03d}",
                 "Timestamp": timestamp,
                 "Frame_ID": f"{video_path.stem}_frame_{frame_id}",
                 "Event_Detected": event,
@@ -178,6 +186,9 @@ def run_video_pipeline(frame_interval: int = 10) -> None:
         except Exception as e:
             warnings.warn(f"Skipping video {video.name}: {e}", stacklevel=2)
 
+    n_videos = len(videos)
+    n_events = len(all_rows)
+
     out_df = pd.DataFrame(all_rows)
     if not out_df.empty:
         out_df = out_df[
@@ -186,6 +197,7 @@ def run_video_pipeline(frame_interval: int = 10) -> None:
     out_csv = _OUTPUTS / "video_output.csv"
     out_df.to_csv(out_csv, index=False)
     print(out_df.to_string(index=False))
+    print(f"Processed {n_videos} videos, extracted {n_events} events", flush=True)
 
 
 if __name__ == "__main__":

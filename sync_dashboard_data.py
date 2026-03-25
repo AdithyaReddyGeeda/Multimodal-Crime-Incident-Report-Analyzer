@@ -1,4 +1,7 @@
-"""Sync outputs/*.csv → dashboard/src/data/*.js for the React dashboard."""
+"""Sync outputs/*.csv → dashboard/src/data/*.js for the React dashboard.
+
+CSV column Incident_ID may use module prefixes: IMG-, AUD-, VID-, TXT- (or legacy INC-).
+"""
 
 import json
 from pathlib import Path

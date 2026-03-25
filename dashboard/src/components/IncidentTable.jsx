@@ -3,24 +3,37 @@ function truncate(str, max = 55) {
   return `${str.slice(0, max)}...`
 }
 
-function sourceBadge(source) {
-  if (source === 'Audio') {
-    return 'bg-blue-100 text-blue-800 border border-blue-200'
-  }
-  if (source === 'Video') {
-    return 'bg-purple-100 text-purple-800 border border-purple-200'
-  }
-  if (source === 'Text') {
-    return 'bg-orange-100 text-orange-900 border border-orange-200'
-  }
-  return 'bg-green-100 text-green-800 border border-green-200'
+const SOURCE_STYLE = {
+  Image: {
+    badge: 'bg-[#10b981]/15 text-[#047857] border border-[#10b981]/40',
+    row: 'bg-[#10b981]/10 hover:bg-[#10b981]/15',
+  },
+  Audio: {
+    badge: 'bg-[#3b82f6]/15 text-[#1d4ed8] border border-[#3b82f6]/40',
+    row: 'bg-[#3b82f6]/10 hover:bg-[#3b82f6]/15',
+  },
+  Video: {
+    badge: 'bg-[#a855f7]/15 text-[#6b21a8] border border-[#a855f7]/40',
+    row: 'bg-[#a855f7]/10 hover:bg-[#a855f7]/15',
+  },
+  Text: {
+    badge: 'bg-[#f97316]/15 text-[#c2410c] border border-[#f97316]/40',
+    row: 'bg-[#f97316]/10 hover:bg-[#f97316]/15',
+  },
 }
 
-function rowTint(source) {
-  if (source === 'Audio') return 'hover:bg-blue-50/70'
-  if (source === 'Video') return 'hover:bg-purple-50/70'
-  if (source === 'Text') return 'hover:bg-orange-50/70'
-  return 'hover:bg-green-50/60'
+function rowKey(row) {
+  if (row.frame_id) return `${row.source}-${row.incident_id}-${row.frame_id}`
+  if (row.text_id) return `${row.source}-${row.incident_id}-${row.text_id}`
+  if (row.call_id) return `${row.source}-${row.incident_id}-${row.call_id}`
+  if (row.image_id) return `${row.source}-${row.incident_id}-${row.image_id}`
+  return `${row.source}-${row.incident_id}`
+}
+
+function severityBadge(level) {
+  if (level === 'High') return 'bg-red-100 text-red-800 border border-red-200'
+  if (level === 'Medium') return 'bg-amber-100 text-amber-900 border border-amber-200'
+  return 'bg-emerald-100 text-emerald-900 border border-emerald-200'
 }
 
 export default function IncidentTable({ rows, onView }) {
@@ -34,9 +47,10 @@ export default function IncidentTable({ rows, onView }) {
                 'Incident ID',
                 'Source',
                 'Type',
-                'Location',
+                'Location / Topic',
                 'Details',
-                'Confidence/Urgency',
+                'Confidence',
+                'Severity',
                 'Action',
               ].map((col) => (
                 <th
@@ -49,37 +63,49 @@ export default function IncidentTable({ rows, onView }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {rows.map((row) => (
-              <tr key={`${row.source}-${row.incident_id}`} className={rowTint(row.source)}>
-                <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
-                  {row.incident_id}
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${sourceBadge(row.source)}`}
-                  >
-                    {row.source}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-gray-800">{row.type}</td>
-                <td className="px-4 py-3 text-gray-700">{row.location || 'N/A'}</td>
-                <td className="px-4 py-3 text-gray-700 max-w-[340px]">
-                  {truncate(row.detailText || '—')}
-                </td>
-                <td className="px-4 py-3 text-gray-800">
-                  {(Number(row.confidenceOrUrgency) * 100).toFixed(0)}%
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => onView(row)}
-                    className="rounded-lg bg-gray-900 text-white text-xs font-medium px-3 py-1.5 hover:bg-gray-800 transition-colors"
-                  >
-                    View Details
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {rows.map((row) => {
+              const st = SOURCE_STYLE[row.source] || SOURCE_STYLE.Image
+              return (
+                <tr key={rowKey(row)} className={st.row}>
+                  <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
+                    {row.incident_id}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${st.badge}`}
+                    >
+                      {row.source}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-800">{row.type}</td>
+                  <td className="px-4 py-3 text-gray-700 max-w-[200px]">
+                    {row.locationOrTopic}
+                  </td>
+                  <td className="px-4 py-3 text-gray-700 max-w-[280px]">
+                    {truncate(row.detailText || '—')}
+                  </td>
+                  <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                    {(Number(row.confidenceOrUrgency) * 100).toFixed(0)}%
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${severityBadge(row.severityLevel)}`}
+                    >
+                      {row.severityLevel}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => onView(row)}
+                      className="rounded-lg bg-gray-900 text-white text-xs font-medium px-3 py-1.5 hover:bg-gray-800 transition-colors"
+                    >
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

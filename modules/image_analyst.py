@@ -39,7 +39,6 @@ ROBOFLOW_PROJECT = "fire-detection-rsqrr"
 ROBOFLOW_VERSION = 1
 # Equivalent to Path("fire-detection.v1i.yolov8/test/images") when running from project root
 IMAGE_DIR = _PROJECT_ROOT / "fire-detection.v1i.yolov8" / "test" / "images"
-MAX_IMAGES = 15
 
 _TESSERACT_HINT = """[Image Analyst] ⚠️ Tesseract not found. Install it:
   Mac:    brew install tesseract
@@ -196,7 +195,7 @@ def _process_one_image(
     index: int,
 ) -> dict[str, object]:
     row: dict[str, object] = {
-        "Incident_ID": f"INC-{index:03d}",
+        "Incident_ID": f"IMG-{index:03d}",
         "Image_ID": path.stem,
         "Scene_Type": "Unknown",
         "Objects_Detected": "none",
@@ -239,11 +238,11 @@ def run_image_pipeline() -> None:
         sys.exit(1)
 
     print(
-        f"[Image Analyst] Found {total} images. Processing first {MAX_IMAGES}...",
+        f"[Image Analyst] Found {total} images. Processing all...",
         flush=True,
     )
 
-    image_paths = all_sorted[:MAX_IMAGES]
+    image_paths = all_sorted
 
     rf_model = None
     try:
@@ -296,6 +295,7 @@ def run_image_pipeline() -> None:
     out_csv = _OUTPUTS / "image_output.csv"
     df.to_csv(out_csv, index=False)
     print(df.to_string(index=False))
+    print(f"Processed {len(image_paths)} fire detection images", flush=True)
 
 
 if __name__ == "__main__":

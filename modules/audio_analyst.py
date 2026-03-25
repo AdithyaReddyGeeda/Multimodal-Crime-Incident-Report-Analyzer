@@ -28,8 +28,6 @@ _DATA_AUDIO = _PROJECT_ROOT / "data" / "audio"
 _TRANSCRIPTS_CSV = _DATA_AUDIO / "transcripts.csv"
 _OUTPUTS = _PROJECT_ROOT / "outputs"
 
-_MAX_ROWS = 10
-
 _NO_TRANSCRIPTS_MSG = """[Audio Analyst] ❌ No transcripts file found at data/audio/transcripts.csv
 Steps to fix:
   • Run: python transcribe_audio.py   (Whisper — needs .mp3/.wav in data/audio/)
@@ -196,8 +194,6 @@ def run_audio_pipeline() -> None:
             f"Could not read or parse transcripts CSV (need call_id and transcript columns): {e}"
         ) from e
 
-    df = df.head(_MAX_ROWS)
-
     nlp = None
     try:
         import spacy
@@ -229,7 +225,7 @@ def run_audio_pipeline() -> None:
             sentiment, urgency = _sentiment_and_urgency(transcript, sentiment_pipeline)
             rows.append(
                 {
-                    "Incident_ID": f"INC-{idx:03d}",
+                    "Incident_ID": f"AUD-{idx:03d}",
                     "Call_ID": call_id if call_id else f"row_{idx}",
                     "Transcript": transcript,
                     "Extracted_Event": event,
@@ -258,6 +254,7 @@ def run_audio_pipeline() -> None:
     out_csv = _OUTPUTS / "audio_output.csv"
     out_df.to_csv(out_csv, index=False)
     print(out_df.to_string(index=False))
+    print(f"Processed {len(df)} audio transcripts", flush=True)
 
 
 if __name__ == "__main__":

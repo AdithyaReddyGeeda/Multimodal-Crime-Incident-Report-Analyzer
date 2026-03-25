@@ -23,7 +23,6 @@ _DATASET_CANDIDATES = (
     _DATA_TEXT / "CrimeReport.txt",
 )
 _OUTPUTS = _PROJECT_ROOT / "outputs"
-_MAX_ROWS = 10
 _SOURCE_LABEL = "Kaggle CrimeReport"
 
 _NO_DATASET_MSG = """[Text Analyst] ❌ No text dataset found under data/text/
@@ -223,7 +222,6 @@ def run_text_pipeline() -> None:
         raise RuntimeError(f"Could not read {dataset_path}: {e}") from e
 
     text_col = _find_text_column(df)
-    df = df.head(_MAX_ROWS)
 
     nlp = None
     try:
@@ -254,7 +252,7 @@ def run_text_pipeline() -> None:
             raw_100 = raw_for_preview[:100] if raw_for_preview else ""
 
             cleaned = _clean_text(raw)
-            tokenized = _nltk_tokenize_remove_stopwords(cleaned)
+            _nltk_tokenize_remove_stopwords(cleaned)
 
             if nlp is not None:
                 doc = nlp(raw_for_preview or cleaned)
@@ -291,7 +289,7 @@ def run_text_pipeline() -> None:
 
             rows.append(
                 {
-                    "Incident_ID": f"INC-{idx:03d}",
+                    "Incident_ID": f"TXT-{idx:03d}",
                     "Text_ID": str(text_id) if text_id is not None else str(idx),
                     "Source": _SOURCE_LABEL,
                     "Raw_Text": raw_100,
@@ -322,6 +320,7 @@ def run_text_pipeline() -> None:
     out_csv = _OUTPUTS / "text_output.csv"
     out_df.to_csv(out_csv, index=False)
     print(out_df.to_string(index=False))
+    print(f"Processed {len(df)} text reports", flush=True)
 
 
 if __name__ == "__main__":

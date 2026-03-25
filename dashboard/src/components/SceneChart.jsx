@@ -2,7 +2,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
+  Cell,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -10,6 +10,13 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+
+const SOURCE_COLORS = {
+  Image: '#10b981',
+  Audio: '#3b82f6',
+  Video: '#a855f7',
+  Text: '#f97316',
+}
 
 function aggregateByType(rows) {
   const map = {}
@@ -24,16 +31,10 @@ function aggregateBySource(rows) {
   rows.forEach((r) => {
     map[r.source] = (map[r.source] || 0) + 1
   })
-  const fillForSource = {
-    Audio: '#3b82f6',
-    Image: '#22c55e',
-    Video: '#a855f7',
-    Text: '#f97316',
-  }
   return Object.entries(map).map(([name, value]) => ({
     name,
     value,
-    fill: fillForSource[name] || '#9ca3af',
+    fill: SOURCE_COLORS[name] || '#9ca3af',
   }))
 }
 
@@ -47,6 +48,7 @@ function averageBySource(rows) {
   return Object.entries(map).map(([source, v]) => ({
     source,
     avg: Number((v.sum / v.count).toFixed(2)),
+    fill: SOURCE_COLORS[source] || '#0ea5e9',
   }))
 }
 
@@ -63,7 +65,7 @@ export default function SceneChart({ rows }) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={byType} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} angle={-10} textAnchor="end" height={56} />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-12} textAnchor="end" height={64} />
               <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
               <Tooltip />
               <Bar dataKey="count" name="Count" fill="#6366f1" radius={[4, 4, 0, 0]} />
@@ -74,15 +76,40 @@ export default function SceneChart({ rows }) {
 
       <div className="bg-white rounded-xl shadow p-4">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Incidents by Source</h2>
-        <div className="w-full h-[300px]">
+        <div className="w-full h-[260px]">
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={bySource} dataKey="value" nameKey="name" outerRadius={95} />
+            <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+              <Pie
+                data={bySource}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="45%"
+                outerRadius={88}
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                labelLine={{ stroke: '#9ca3af' }}
+              >
+                {bySource.map((entry) => (
+                  <Cell key={entry.name} fill={entry.fill} />
+                ))}
+              </Pie>
               <Tooltip />
-              <Legend />
             </PieChart>
           </ResponsiveContainer>
         </div>
+        <ul className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-gray-700">
+          {bySource.map((d) => (
+            <li key={d.name} className="inline-flex items-center gap-1.5">
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: d.fill }}
+                aria-hidden
+              />
+              <span className="font-medium text-gray-900">{d.name}</span>
+              <span className="text-gray-500">({d.value})</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <div className="bg-white rounded-xl shadow p-4">
@@ -94,7 +121,11 @@ export default function SceneChart({ rows }) {
               <XAxis dataKey="source" tick={{ fontSize: 12 }} />
               <YAxis domain={[0, 1]} tick={{ fontSize: 12 }} />
               <Tooltip />
-              <Bar dataKey="avg" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="avg" name="Avg" radius={[4, 4, 0, 0]}>
+                {avgBySource.map((entry) => (
+                  <Cell key={entry.source} fill={entry.fill} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

@@ -46,7 +46,7 @@ export default function IncidentModal({ incident, onClose }) {
         onClick={onClose}
         aria-label="Close modal"
       />
-      <div className="relative z-10 w-full max-w-lg bg-white rounded-xl shadow-xl p-6 animate-modal-in transition-opacity duration-200">
+      <div className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-xl p-6 animate-modal-in transition-opacity duration-200">
         <button
           type="button"
           onClick={onClose}
@@ -123,8 +123,10 @@ export default function IncidentModal({ incident, onClose }) {
                   <dd className="text-gray-900 mt-0.5 break-words">{incident.entities}</dd>
                 </div>
                 <div>
-                  <dt className="text-gray-500">Excerpt</dt>
-                  <dd className="text-gray-900 mt-0.5 break-words">{incident.raw_text}</dd>
+                  <dt className="text-gray-500">Raw text</dt>
+                  <dd className="text-gray-900 mt-0.5 break-words whitespace-pre-wrap">
+                    {incident.raw_text}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-gray-500 mb-2">Sentiment confidence</dt>
