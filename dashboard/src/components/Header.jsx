@@ -9,7 +9,7 @@ export default function Header() {
           </p>
         </div>
         <span className="inline-flex items-center rounded-full bg-emerald-700/40 text-emerald-100 text-sm font-medium px-3 py-1.5 border border-emerald-500/50">
-          All 4 Modules Active
+          All 4 Modules
         </span>
       </div>
     </header>
