@@ -1,6 +1,6 @@
 # Multimodal Crime / Incident Report Analyzer
 
-Python pipelines and a React dashboard for analyzing incident-related **images** (fire detection, OCR), **911 call transcripts** (NER, event types, sentiment, urgency), and **CCTV videos** (motion + YOLO events). Outputs are CSV files you can merge or feed into the dashboard.
+Python pipelines and a React dashboard for analyzing incident-related **images** (fire detection, OCR), **911 call transcripts** (NER, event types, sentiment, urgency), **CCTV videos** (motion + YOLO events), and **news/social text** (NER, sentiment, topic). Outputs are CSV files you can merge or feed into the dashboard.
 
 **Repository:** [Multimodal-Crime-Incident-Report-Analyzer](https://github.com/AdithyaReddyGeeda/Multimodal-Crime-Incident-Report-Analyzer)
 
@@ -30,12 +30,22 @@ Python pipelines and a React dashboard for analyzing incident-related **images**
 - **Event classification:** Rule-based mapping to `Person Movement`, `Vehicle Movement`, `Crowd Gathering`, `Anomaly Detected`, or `No Event`.
 - **Output:** `outputs/video_output.csv` — `Incident_ID`, `Timestamp`, `Frame_ID`, `Event_Detected`, `Objects`, `Confidence`.
 
+### Module 5 — Text / news (`modules/text_analyst.py`)
+
+- **Input:** `data/text/crimereport.csv`, `crimereport.txt`, `CrimeReport.csv`, or **`CrimeReport.txt`** from the [Kaggle CrimeReport dataset](https://www.kaggle.com/datasets/cameliasiadat/crimereport). The default export is **JSON Lines** (one tweet JSON per line), not a comma-separated table; the pipeline loads that format automatically. The pipeline reads the **first 10** rows.
+- **Preprocess:** Auto-detect text column (`text`, `description`, `content`, or `report`); clean URLs/special characters; NLTK tokenization + English stopword removal.
+- **NER:** spaCy `en_core_web_sm` — people, locations, organizations, dates; stored as one **`Entities`** string (`People: …; Locations: …; Organizations: …; Dates: …`).
+- **Sentiment:** Hugging Face DistilBERT SST-2 (`distilbert-base-uncased-finetuned-sst-2-english`).
+- **Topic:** Zero-shot `facebook/bart-large-mnli` with labels `accident`, `fire`, `theft`, `public disturbance`, `assault`, `other`; keyword fallback if the model is unavailable.
+- **Output:** `outputs/text_output.csv` — includes `Sentiment_Score` (model confidence, 0–1) for dashboard use in addition to `Sentiment`, `Entities`, and `Topic`.
+
 ### Dashboard (`dashboard/`)
 
-- React + Vite + Tailwind unified incident dashboard for **audio**, **image**, and **video** results:
+- React + Vite + Tailwind unified incident dashboard for **audio**, **image**, **video**, and **text** results:
   - `dashboard/src/data/imageResults.js`
   - `dashboard/src/data/audioResults.js`
   - `dashboard/src/data/videoResults.js`
+  - `dashboard/src/data/textResults.js`
 - **Sync CSV → dashboard:** after regenerating outputs, run **`python sync_dashboard_data.py`** so all module outputs are reflected in the UI (no manual copy-paste).
 
 ---
@@ -46,7 +56,9 @@ Python pipelines and a React dashboard for analyzing incident-related **images**
 - **Tesseract** (for OCR): macOS `brew install tesseract`, Ubuntu `sudo apt install tesseract-ocr`
 - **Node.js** (for the dashboard): current LTS recommended
 - **Roboflow API key** (for hosted image inference) — store in `.env`, not in code
-- **spaCy English model** (audio): after installing deps, run `python -m spacy download en_core_web_sm`
+- **spaCy English model** (audio / text): after installing deps, run `python -m spacy download en_core_web_sm`
+- **NLTK data** (text): first run may download `stopwords`, `punkt`, and `punkt_tab` automatically, or run:  
+  `python -m nltk.downloader stopwords punkt punkt_tab`
 
 ---
 
@@ -118,13 +130,24 @@ Writes **`outputs/audio_output.csv`** and prints the full DataFrame.
 
 Writes **`outputs/video_output.csv`** with one row per detected incident event.
 
+### Text pipeline
+
+1. Download [CrimeReport](https://www.kaggle.com/datasets/cameliasiadat/crimereport) and save as **`data/text/crimereport.csv`** or **`data/text/crimereport.txt`** (either name works).
+2. Run:
+
+   ```bash
+   python3 modules/text_analyst.py
+   ```
+
+Writes **`outputs/text_output.csv`** and prints the full DataFrame.
+
 ### Sync dashboard with CSV outputs
 
 ```bash
 python3 sync_dashboard_data.py
 ```
 
-Updates **`dashboard/src/data/imageResults.js`**, **`dashboard/src/data/audioResults.js`**, and **`dashboard/src/data/videoResults.js`** from the CSVs (prints a message if a CSV is missing).
+Updates **`dashboard/src/data/imageResults.js`**, **`dashboard/src/data/audioResults.js`**, **`dashboard/src/data/videoResults.js`**, and **`dashboard/src/data/textResults.js`** from the CSVs (prints a message if a CSV is missing).
 
 ### View dashboard
 
@@ -163,13 +186,14 @@ python3 sync_dashboard_data.py
 cd dashboard && npm run dev
 ```
 
-**Full stack (image + audio + video):**
+**Full stack (image + audio + video + text):**
 
 ```bash
 python3 modules/image_analyst.py
 python3 transcribe_audio.py
 python3 modules/audio_analyst.py
 python3 modules/video_analyst.py
+python3 modules/text_analyst.py
 python3 sync_dashboard_data.py
 cd dashboard && npm run dev
 ```
@@ -183,13 +207,15 @@ cd dashboard && npm run dev
 | `modules/image_analyst.py` | Image inference, classification, OCR → CSV |
 | `modules/audio_analyst.py` | Transcript NER, events, sentiment, urgency → CSV |
 | `modules/video_analyst.py` | Motion + YOLO CCTV event detection → CSV |
+| `modules/text_analyst.py` | CrimeReport CSV: NER, sentiment, topic → CSV |
 | `transcribe_audio.py` | Whisper: `data/audio/*.mp3|wav` → `data/audio/transcripts.csv` |
-| `sync_dashboard_data.py` | Syncs image/audio/video CSV outputs → `dashboard/src/data/*.js` |
+| `sync_dashboard_data.py` | Syncs image/audio/video/text CSV outputs → `dashboard/src/data/*.js` |
 | `fire-detection.v1i.yolov8/` | Roboflow fire dataset (e.g. `test/images/`) |
 | `data/audio/` | Audio files and `transcripts.csv` input for Module 1 |
 | `data/videos/` | CCTV clips input for Module 4 |
-| `outputs/` | `image_output.csv`, `audio_output.csv`, `video_output.csv` |
-| `dashboard/` | React frontend (`imageResults.js`, `audioResults.js`, `videoResults.js`) |
+| `data/text/` | `crimereport.csv` or `crimereport.txt` input for Module 5 |
+| `outputs/` | `image_output.csv`, `audio_output.csv`, `video_output.csv`, `text_output.csv` |
+| `dashboard/` | React frontend (`imageResults.js`, `audioResults.js`, `videoResults.js`, `textResults.js`) |
 | `.env` / `.env.example` | Local secrets (not committed) vs template |
 | `requirements.txt` | Python dependencies |
 

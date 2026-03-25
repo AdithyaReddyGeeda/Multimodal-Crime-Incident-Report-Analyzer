@@ -24,7 +24,12 @@ function aggregateBySource(rows) {
   rows.forEach((r) => {
     map[r.source] = (map[r.source] || 0) + 1
   })
-  const fillForSource = { Audio: '#3b82f6', Image: '#22c55e', Video: '#a855f7' }
+  const fillForSource = {
+    Audio: '#3b82f6',
+    Image: '#22c55e',
+    Video: '#a855f7',
+    Text: '#f97316',
+  }
   return Object.entries(map).map(([name, value]) => ({
     name,
     value,

@@ -31,6 +31,7 @@ export default function IncidentModal({ incident, onClose }) {
   if (!incident) return null
   const isAudio = incident.source === 'Audio'
   const isVideo = incident.source === 'Video'
+  const isText = incident.source === 'Text'
 
   return (
     <div
@@ -67,7 +68,9 @@ export default function IncidentModal({ incident, onClose }) {
             ? `• ${incident.call_id}`
             : isVideo
               ? `• ${incident.frame_id}`
-              : `• ${incident.image_id}`}
+              : isText
+                ? `• ${incident.text_id}`
+                : `• ${incident.image_id}`}
         </p>
 
         <div className="mt-6 space-y-4">
@@ -95,6 +98,38 @@ export default function IncidentModal({ incident, onClose }) {
                   <dt className="text-gray-500 mb-2">Urgency</dt>
                   <dd>
                     <ConfidenceBar score={incident.urgency_score} />
+                  </dd>
+                </div>
+              </dl>
+            </>
+          ) : isText ? (
+            <>
+              <h3 className="text-sm font-semibold text-gray-700">Text analysis</h3>
+              <dl className="space-y-3 text-sm">
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Dataset</dt>
+                  <dd className="text-gray-900">{incident.source_dataset}</dd>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Topic</dt>
+                  <dd className="text-gray-900">{incident.topic}</dd>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Sentiment</dt>
+                  <dd className="text-gray-900">{incident.sentiment}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">Entities</dt>
+                  <dd className="text-gray-900 mt-0.5 break-words">{incident.entities}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">Excerpt</dt>
+                  <dd className="text-gray-900 mt-0.5 break-words">{incident.raw_text}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 mb-2">Sentiment confidence</dt>
+                  <dd>
+                    <ConfidenceBar score={incident.sentiment_score} />
                   </dd>
                 </div>
               </dl>

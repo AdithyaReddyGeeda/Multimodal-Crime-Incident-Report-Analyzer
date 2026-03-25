@@ -9,9 +9,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 IMAGE_CSV = PROJECT_ROOT / "outputs" / "image_output.csv"
 AUDIO_CSV = PROJECT_ROOT / "outputs" / "audio_output.csv"
 VIDEO_CSV = PROJECT_ROOT / "outputs" / "video_output.csv"
+TEXT_CSV = PROJECT_ROOT / "outputs" / "text_output.csv"
 IMAGE_JS = PROJECT_ROOT / "dashboard" / "src" / "data" / "imageResults.js"
 AUDIO_JS = PROJECT_ROOT / "dashboard" / "src" / "data" / "audioResults.js"
 VIDEO_JS = PROJECT_ROOT / "dashboard" / "src" / "data" / "videoResults.js"
+TEXT_JS = PROJECT_ROOT / "dashboard" / "src" / "data" / "textResults.js"
 
 
 def sync_image() -> bool:
@@ -93,10 +95,39 @@ def sync_video() -> bool:
     return True
 
 
+def sync_text() -> bool:
+    if not TEXT_CSV.exists():
+        print(f"❌ Text CSV not found at {TEXT_CSV}. Run: python modules/text_analyst.py")
+        return False
+
+    df = pd.read_csv(TEXT_CSV)
+    records = []
+    for _, row in df.iterrows():
+        records.append(
+            {
+                "incident_id": row["Incident_ID"],
+                "text_id": str(row["Text_ID"]),
+                "source_dataset": row["Source"],
+                "raw_text": row["Raw_Text"],
+                "sentiment": row["Sentiment"],
+                "sentiment_score": round(float(row["Sentiment_Score"]), 4),
+                "entities": row["Entities"],
+                "topic": row["Topic"],
+            }
+        )
+
+    js_content = "export const textResults = " + json.dumps(records, indent=2) + ";\n"
+    TEXT_JS.parent.mkdir(parents=True, exist_ok=True)
+    TEXT_JS.write_text(js_content, encoding="utf-8")
+    print(f"✅ Synced {len(records)} text rows → {TEXT_JS.relative_to(PROJECT_ROOT)}")
+    return True
+
+
 def sync() -> None:
     sync_image()
     sync_audio()
     sync_video()
+    sync_text()
     print("   Run: cd dashboard && npm run dev")
 
 

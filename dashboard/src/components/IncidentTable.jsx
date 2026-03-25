@@ -10,12 +10,16 @@ function sourceBadge(source) {
   if (source === 'Video') {
     return 'bg-purple-100 text-purple-800 border border-purple-200'
   }
+  if (source === 'Text') {
+    return 'bg-orange-100 text-orange-900 border border-orange-200'
+  }
   return 'bg-green-100 text-green-800 border border-green-200'
 }
 
 function rowTint(source) {
   if (source === 'Audio') return 'hover:bg-blue-50/70'
   if (source === 'Video') return 'hover:bg-purple-50/70'
+  if (source === 'Text') return 'hover:bg-orange-50/70'
   return 'hover:bg-green-50/60'
 }
 

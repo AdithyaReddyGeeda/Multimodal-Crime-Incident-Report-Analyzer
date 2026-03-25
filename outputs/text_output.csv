@@ -1,0 +1,14 @@
+Incident_ID,Text_ID,Source,Raw_Text,Sentiment,Sentiment_Score,Entities,Topic
+INC-001,429129916446031872,Kaggle CrimeReport,"Active crime scene on I-59/20 near Jeff/Tusc Co line. One dead, one injured; shooting involved. Poli",NEGATIVE,0.9902,People: N/A; Locations: N/A; Organizations: N/A; Dates: N/A,other
+INC-002,429117247307923456,Kaggle CrimeReport,Police have arrested a suspect in the Monday shooting at the basketball courts behind Word Tabernacl,NEGATIVE,0.9781,People: N/A; Locations: N/A; Organizations: Word Tabernacle Church; Dates: Monday,other
+INC-003,429315798893461505,Kaggle CrimeReport,Lawsuit alleges Chicago Police strip-searched trio in public http://t.co/NGVCe42BUW via @suntimes,NEGATIVE,0.9972,People: N/A; Locations: Chicago; Organizations: N/A; Dates: N/A,other
+INC-004,429079910091476992,Kaggle CrimeReport,New NRA Advice: Don't Cooperate With Police If Your Gun Shows Up At A Crime Scene;  http://t.co/f96j,NEGATIVE,0.9976,People: N/A; Locations: N/A; Organizations: New NRA Advice; Dates: N/A,other
+INC-005,429030956888899584,Kaggle CrimeReport,"Police failing to stamp out ‘honour crimes’, from domestic violence and forced marriage to FGM and m",NEGATIVE,0.9845,People: N/A; Locations: N/A; Organizations: FGM; Dates: N/A,other
+INC-006,429152645702352896,Kaggle CrimeReport,"Today's front page: 
+Police failing to stamp out ‘honour crimes’ http://t.co/SLuXLgbQbU http://t.co/",NEGATIVE,0.997,People: N/A; Locations: N/A; Organizations: N/A; Dates: Today,other
+INC-007,429016075921940481,Kaggle CrimeReport,"Town of Tonawanda Police Search for Bank Robbery Suspect
+http://t.co/4aJxs3Mv9G http://t.co/320mwHfu",NEGATIVE,0.9947,"People: N/A; Locations: N/A; Organizations: Town of Tonawanda Police Search for Bank Robbery Suspect
+http://t.co/4aJxs3Mv9G http://t.co/320mwHfuPl; Dates: N/A",other
+INC-008,428898232690044928,Kaggle CrimeReport,"Due to lack of police protection, #Christians in #Pakistan become easy targets for crime and abuse. ",NEGATIVE,0.9962,People: N/A; Locations: Pakistan; Organizations: N/A; Dates: N/A,other
+INC-009,428956892602191873,Kaggle CrimeReport,New #NRA Advice: Don't Cooperate With Police If Your Gun Shows Up At A Crime Scene http://t.co/ldIDJ,NEGATIVE,0.9985,People: N/A; Locations: N/A; Organizations: Crime Scene; Dates: N/A,other
+INC-010,429111068368326656,Kaggle CrimeReport,Commish Batts makes a strong case for legalizing marijuana - to end the violent MJ trade in Baltimor,POSITIVE,0.9884,People: Commish Batts; @baltimoresun http://t.co/A0TRUflAYl; Locations: Baltimore; Organizations: N/A; Dates: N/A,other

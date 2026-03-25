@@ -1,5 +1,5 @@
 export default function StatsBar({ stats }) {
-  const { total, imageCount, audioCount, videoCount } = stats
+  const { total, imageCount, audioCount, videoCount, textCount } = stats
 
   const cards = [
     {
@@ -8,24 +8,29 @@ export default function StatsBar({ stats }) {
       borderClass: 'border-l-4 border-gray-300',
     },
     {
-      label: 'Image Incidents',
+      label: 'Image',
       value: imageCount,
       borderClass: 'border-l-4 border-green-500',
     },
     {
-      label: 'Audio Incidents',
+      label: 'Audio',
       value: audioCount,
       borderClass: 'border-l-4 border-blue-500',
     },
     {
-      label: 'Video Incidents',
+      label: 'Video',
       value: videoCount,
       borderClass: 'border-l-4 border-purple-500',
+    },
+    {
+      label: 'Text',
+      value: textCount,
+      borderClass: 'border-l-4 border-orange-500',
     },
   ]
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 my-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 my-6">
       {cards.map((card) => (
         <div
           key={card.label}

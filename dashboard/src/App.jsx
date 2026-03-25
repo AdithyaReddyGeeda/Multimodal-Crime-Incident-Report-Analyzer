@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { audioResults } from './data/audioResults.js'
 import { imageResults } from './data/imageResults.js'
+import { textResults } from './data/textResults.js'
 import { videoResults } from './data/videoResults.js'
 import Header from './components/Header.jsx'
 import StatsBar from './components/StatsBar.jsx'
@@ -8,7 +9,7 @@ import SceneChart from './components/SceneChart.jsx'
 import IncidentTable from './components/IncidentTable.jsx'
 import IncidentModal from './components/IncidentModal.jsx'
 
-const SOURCE_OPTIONS = ['All', 'Audio', 'Image', 'Video']
+const SOURCE_OPTIONS = ['All', 'Audio', 'Image', 'Video', 'Text']
 
 function getSeverityLevel(score) {
   if (score <= 0.3) return 'Low'
@@ -16,35 +17,59 @@ function getSeverityLevel(score) {
   return 'High'
 }
 
+function locationFromEntities(entities) {
+  if (!entities || typeof entities !== 'string') return 'N/A'
+  const m = entities.match(/Locations:\s*([^;]+)/)
+  const s = m ? m[1].trim() : ''
+  if (!s || s === 'N/A') return 'N/A'
+  return s
+}
+
+function titleCaseTopic(s) {
+  return String(s || '')
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ')
+}
+
 function toIncident(row, source) {
-  const confidenceOrUrgency = source === 'Audio'
-    ? Number(row.urgency_score || 0)
-    : source === 'Image'
-      ? Number(row.confidence_score || 0)
-      : Number(row.confidence || 0)
+  let confidenceOrUrgency = 0
+  let type = ''
+  let detailText = ''
+  let location = 'N/A'
 
-  const type = source === 'Audio'
-    ? row.extracted_event
-    : source === 'Image'
-      ? row.scene_type
-      : row.event_detected
+  if (source === 'Audio') {
+    confidenceOrUrgency = Number(row.urgency_score || 0)
+    type = row.extracted_event
+    detailText = row.transcript
+    location = row.location || 'N/A'
+  } else if (source === 'Image') {
+    confidenceOrUrgency = Number(row.confidence_score || 0)
+    type = row.scene_type
+    detailText = row.objects_detected
+    location = 'N/A'
+  } else if (source === 'Video') {
+    confidenceOrUrgency = Number(row.confidence || 0)
+    type = row.event_detected
+    detailText = row.objects
+    location = 'N/A'
+  } else if (source === 'Text') {
+    confidenceOrUrgency = Number(row.sentiment_score ?? 0.5)
+    type = titleCaseTopic(row.topic)
+    detailText = row.raw_text || row.entities
+    location = locationFromEntities(row.entities)
+  }
 
-  const detailText = source === 'Audio'
-    ? row.transcript
-    : source === 'Image'
-      ? row.objects_detected
-      : row.objects
-
-  const location = source === 'Audio' ? row.location : 'N/A'
   return {
     ...row,
     source,
     type,
     location,
+    detailText,
     confidenceOrUrgency,
     severityScore: confidenceOrUrgency,
     severityLevel: getSeverityLevel(confidenceOrUrgency),
-    detailText,
   }
 }
 
@@ -61,7 +86,8 @@ function buildStats(rows) {
   const imageCount = rows.filter((r) => r.source === 'Image').length
   const audioCount = rows.filter((r) => r.source === 'Audio').length
   const videoCount = rows.filter((r) => r.source === 'Video').length
-  return { total, imageCount, audioCount, videoCount }
+  const textCount = rows.filter((r) => r.source === 'Text').length
+  return { total, imageCount, audioCount, videoCount, textCount }
 }
 
 export default function App() {
@@ -74,6 +100,7 @@ export default function App() {
         ...imageResults.map((r) => toIncident(r, 'Image')),
         ...audioResults.map((r) => toIncident(r, 'Audio')),
         ...videoResults.map((r) => toIncident(r, 'Video')),
+        ...textResults.map((r) => toIncident(r, 'Text')),
       ]),
     [],
   )
@@ -91,7 +118,7 @@ export default function App() {
 
       <div className="max-w-6xl mx-auto px-4 pb-10">
         <div className="my-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 text-sm font-medium text-center">
-          Unified dashboard for audio (Module 1), image (Module 3), and video (Module 4). Run{' '}
+          Unified dashboard: audio (1), image (3), video (4), text (5). Run{' '}
           <code className="text-xs bg-amber-100/80 px-1 rounded">sync_dashboard_data.py</code> after
           pipelines
         </div>
