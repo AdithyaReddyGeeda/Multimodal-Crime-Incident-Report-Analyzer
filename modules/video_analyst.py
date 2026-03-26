@@ -197,7 +197,7 @@ def run_video_pipeline(frame_interval: int = 10) -> None:
     out_csv = _OUTPUTS / "video_output.csv"
     out_df.to_csv(out_csv, index=False)
     print(out_df.to_string(index=False))
-    print(f"Processed {n_videos} videos, extracted {n_events} events", flush=True)
+    print(f"[Video Analyst] Processed {n_videos} videos, extracted {n_events} events", flush=True)
 
 
 if __name__ == "__main__":

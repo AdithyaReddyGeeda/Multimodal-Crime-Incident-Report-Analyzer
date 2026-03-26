@@ -254,7 +254,7 @@ def run_audio_pipeline() -> None:
     out_csv = _OUTPUTS / "audio_output.csv"
     out_df.to_csv(out_csv, index=False)
     print(out_df.to_string(index=False))
-    print(f"Processed {len(df)} audio transcripts", flush=True)
+    print(f"[Audio Analyst] Processed {len(df)} transcripts", flush=True)
 
 
 if __name__ == "__main__":

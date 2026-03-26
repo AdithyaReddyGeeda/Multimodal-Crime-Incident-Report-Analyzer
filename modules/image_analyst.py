@@ -295,7 +295,7 @@ def run_image_pipeline() -> None:
     out_csv = _OUTPUTS / "image_output.csv"
     df.to_csv(out_csv, index=False)
     print(df.to_string(index=False))
-    print(f"Processed {len(image_paths)} fire detection images", flush=True)
+    print(f"[Image Analyst] Processed {len(image_paths)} fire detection images", flush=True)
 
 
 if __name__ == "__main__":

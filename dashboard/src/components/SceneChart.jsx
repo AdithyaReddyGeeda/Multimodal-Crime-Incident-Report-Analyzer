@@ -3,127 +3,126 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
 
+const SOURCE_ORDER = ['Audio', 'Image', 'Video', 'Text']
 const SOURCE_COLORS = {
-  Image: '#10b981',
   Audio: '#3b82f6',
+  Image: '#10b981',
   Video: '#a855f7',
   Text: '#f97316',
 }
 
-function aggregateByType(rows) {
-  const map = {}
-  rows.forEach((r) => {
-    map[r.type] = (map[r.type] || 0) + 1
-  })
-  return Object.entries(map).map(([name, count]) => ({ name, count }))
+const SEVERITY_ORDER = ['High', 'Medium', 'Low']
+const SEVERITY_COLORS = {
+  High: '#ef4444',
+  Medium: '#eab308',
+  Low: '#22c55e',
 }
 
-function aggregateBySource(rows) {
-  const map = {}
+function incidentsBySource(rows) {
+  const map = { Audio: 0, Image: 0, Video: 0, Text: 0 }
   rows.forEach((r) => {
-    map[r.source] = (map[r.source] || 0) + 1
+    if (map[r.source] !== undefined) map[r.source] += 1
   })
-  return Object.entries(map).map(([name, value]) => ({
+  return SOURCE_ORDER.map((name) => ({
     name,
-    value,
-    fill: SOURCE_COLORS[name] || '#9ca3af',
+    count: map[name],
+    fill: SOURCE_COLORS[name],
   }))
 }
 
-function averageBySource(rows) {
+function topTypes(rows, limit = 8) {
   const map = {}
   rows.forEach((r) => {
-    if (!map[r.source]) map[r.source] = { sum: 0, count: 0 }
-    map[r.source].sum += Number(r.confidenceOrUrgency || 0)
-    map[r.source].count += 1
+    const t = String(r.type || 'Unknown').trim() || 'Unknown'
+    map[t] = (map[t] || 0) + 1
   })
-  return Object.entries(map).map(([source, v]) => ({
-    source,
-    avg: Number((v.sum / v.count).toFixed(2)),
-    fill: SOURCE_COLORS[source] || '#0ea5e9',
+  return Object.entries(map)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([name, count]) => ({ name, count }))
+}
+
+function severityDistribution(rows) {
+  const map = { High: 0, Medium: 0, Low: 0 }
+  rows.forEach((r) => {
+    if (map[r.severity] !== undefined) map[r.severity] += 1
+  })
+  return SEVERITY_ORDER.map((name) => ({
+    name,
+    count: map[name],
+    fill: SEVERITY_COLORS[name],
   }))
 }
 
 export default function SceneChart({ rows }) {
-  const byType = aggregateByType(rows)
-  const bySource = aggregateBySource(rows)
-  const avgBySource = averageBySource(rows)
+  const bySource = incidentsBySource(rows)
+  const byType = topTypes(rows, 8)
+  const bySeverity = severityDistribution(rows)
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 my-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 my-6">
       <div className="bg-white rounded-xl shadow p-4">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Incidents by Type</h2>
-        <div className="w-full h-[300px]">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Incidents by Source</h2>
+        <div className="w-full" style={{ height: 250 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={byType} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+            <BarChart data={bySource} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-12} textAnchor="end" height={64} />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
               <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
               <Tooltip />
-              <Bar dataKey="count" name="Count" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="count" name="Count" radius={[4, 4, 0, 0]}>
+                {bySource.map((entry) => (
+                  <Cell key={entry.name} fill={entry.fill} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       <div className="bg-white rounded-xl shadow p-4">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Incidents by Source</h2>
-        <div className="w-full h-[260px]">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Top 8 Types</h2>
+        <div className="w-full" style={{ height: 250 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-              <Pie
-                data={bySource}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="45%"
-                outerRadius={88}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                labelLine={{ stroke: '#9ca3af' }}
-              >
-                {bySource.map((entry) => (
-                  <Cell key={entry.name} fill={entry.fill} />
-                ))}
-              </Pie>
+            <BarChart
+              data={byType}
+              layout="vertical"
+              margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={100}
+                tick={{ fontSize: 10 }}
+                interval={0}
+              />
               <Tooltip />
-            </PieChart>
+              <Bar dataKey="count" name="Count" fill="#6366f1" radius={[0, 4, 4, 0]} />
+            </BarChart>
           </ResponsiveContainer>
         </div>
-        <ul className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-gray-700">
-          {bySource.map((d) => (
-            <li key={d.name} className="inline-flex items-center gap-1.5">
-              <span
-                className="h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: d.fill }}
-                aria-hidden
-              />
-              <span className="font-medium text-gray-900">{d.name}</span>
-              <span className="text-gray-500">({d.value})</span>
-            </li>
-          ))}
-        </ul>
       </div>
 
       <div className="bg-white rounded-xl shadow p-4">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Avg Confidence/Urgency by Source</h2>
-        <div className="w-full h-[300px]">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Severity Distribution</h2>
+        <div className="w-full" style={{ height: 250 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={avgBySource} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+            <BarChart data={bySeverity} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="source" tick={{ fontSize: 12 }} />
-              <YAxis domain={[0, 1]} tick={{ fontSize: 12 }} />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
               <Tooltip />
-              <Bar dataKey="avg" name="Avg" radius={[4, 4, 0, 0]}>
-                {avgBySource.map((entry) => (
-                  <Cell key={entry.source} fill={entry.fill} />
+              <Bar dataKey="count" name="Count" radius={[4, 4, 0, 0]}>
+                {bySeverity.map((entry) => (
+                  <Cell key={entry.name} fill={entry.fill} />
                 ))}
               </Bar>
             </BarChart>

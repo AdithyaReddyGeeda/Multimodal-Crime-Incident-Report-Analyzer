@@ -78,6 +78,10 @@ export default function IncidentModal({ incident, onClose }) {
             <>
               <h3 className="text-sm font-semibold text-gray-700">Audio analysis</h3>
               <dl className="space-y-3 text-sm">
+                <div>
+                  <dt className="text-gray-500">Transcript</dt>
+                  <dd className="text-gray-900 mt-0.5 break-words">{incident.transcript}</dd>
+                </div>
                 <div className="flex flex-wrap gap-2 justify-between">
                   <dt className="text-gray-500">Extracted event</dt>
                   <dd className="text-gray-900">{incident.extracted_event}</dd>
@@ -91,11 +95,7 @@ export default function IncidentModal({ incident, onClose }) {
                   <dd className="text-gray-900">{incident.sentiment}</dd>
                 </div>
                 <div>
-                  <dt className="text-gray-500">Transcript</dt>
-                  <dd className="text-gray-900 mt-0.5 break-words">{incident.transcript}</dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500 mb-2">Urgency</dt>
+                  <dt className="text-gray-500 mb-2">Urgency score</dt>
                   <dd>
                     <ConfidenceBar score={incident.urgency_score} />
                   </dd>
@@ -106,33 +106,33 @@ export default function IncidentModal({ incident, onClose }) {
             <>
               <h3 className="text-sm font-semibold text-gray-700">Text analysis</h3>
               <dl className="space-y-3 text-sm">
-                <div className="flex flex-wrap gap-2 justify-between">
-                  <dt className="text-gray-500">Dataset</dt>
-                  <dd className="text-gray-900">{incident.source_dataset}</dd>
-                </div>
-                <div className="flex flex-wrap gap-2 justify-between">
-                  <dt className="text-gray-500">Topic</dt>
-                  <dd className="text-gray-900">{incident.topic}</dd>
-                </div>
-                <div className="flex flex-wrap gap-2 justify-between">
-                  <dt className="text-gray-500">Sentiment</dt>
-                  <dd className="text-gray-900">{incident.sentiment}</dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500">Entities</dt>
-                  <dd className="text-gray-900 mt-0.5 break-words">{incident.entities}</dd>
-                </div>
                 <div>
                   <dt className="text-gray-500">Raw text</dt>
                   <dd className="text-gray-900 mt-0.5 break-words whitespace-pre-wrap">
                     {incident.raw_text}
                   </dd>
                 </div>
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Sentiment</dt>
+                  <dd className="text-gray-900">{incident.sentiment}</dd>
+                </div>
                 <div>
-                  <dt className="text-gray-500 mb-2">Sentiment confidence</dt>
+                  <dt className="text-gray-500 mb-2">Sentiment score</dt>
                   <dd>
                     <ConfidenceBar score={incident.sentiment_score} />
                   </dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">Entities</dt>
+                  <dd className="text-gray-900 mt-0.5 break-words">{incident.entities}</dd>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Topic</dt>
+                  <dd className="text-gray-900">{incident.topic}</dd>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Source dataset</dt>
+                  <dd className="text-gray-900">{incident.source_dataset}</dd>
                 </div>
               </dl>
             </>

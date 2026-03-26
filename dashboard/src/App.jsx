@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { audioResults } from './data/audioResults.js'
 import { imageResults } from './data/imageResults.js'
 import { textResults } from './data/textResults.js'
@@ -9,98 +9,8 @@ import SceneChart from './components/SceneChart.jsx'
 import IncidentTable from './components/IncidentTable.jsx'
 import IncidentModal from './components/IncidentModal.jsx'
 
-const SOURCE_OPTIONS = ['All', 'Image', 'Audio', 'Video', 'Text']
+const ITEMS_PER_PAGE = 25
 
-function locationFromEntities(entities) {
-  if (!entities || typeof entities !== 'string') return 'N/A'
-  const m = entities.match(/Locations:\s*([^;]+)/)
-  const s = m ? m[1].trim() : ''
-  if (!s || s === 'N/A') return 'N/A'
-  return s
-}
-
-function titleCaseTopic(s) {
-  return String(s || '')
-    .split(' ')
-    .filter(Boolean)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(' ')
-}
-
-/** 0–1: higher = more negative / alarming (for Audio & Text); 0 for Image/Video. */
-function sentimentNegativity(row, source) {
-  if (source === 'Audio') {
-    const neg = String(row.sentiment || '').toUpperCase().includes('NEG')
-    return neg ? Number(row.urgency_score ?? 0.75) : 0.25
-  }
-  if (source === 'Text') {
-    const neg = String(row.sentiment || '').toUpperCase().includes('NEG')
-    const sc = Number(row.sentiment_score ?? 0.5)
-    return neg ? sc : 1 - sc
-  }
-  return 0
-}
-
-function combinedSeverity(row, source, confidence) {
-  const neg = sentimentNegativity(row, source)
-  const c = Math.min(1, Math.max(0, Number(confidence) || 0))
-  return Math.min(1, Math.max(0, c * 0.7 + neg * 0.3))
-}
-
-function getSeverityLevel(score) {
-  if (score <= 0.33) return 'Low'
-  if (score <= 0.67) return 'Medium'
-  return 'High'
-}
-
-function toIncident(row, source) {
-  let confidenceOrUrgency = 0
-  let type = ''
-  let detailText = ''
-  let location = 'N/A'
-
-  if (source === 'Audio') {
-    confidenceOrUrgency = Number(row.urgency_score || 0)
-    type = row.extracted_event
-    detailText = row.transcript
-    location = row.location || 'N/A'
-  } else if (source === 'Image') {
-    confidenceOrUrgency = Number(row.confidence_score || 0)
-    type = row.scene_type
-    detailText = row.objects_detected
-    location = 'N/A'
-  } else if (source === 'Video') {
-    confidenceOrUrgency = Number(row.confidence || 0)
-    type = row.event_detected
-    detailText = row.objects
-    location = 'N/A'
-  } else if (source === 'Text') {
-    confidenceOrUrgency = Number(row.sentiment_score ?? 0.5)
-    type = titleCaseTopic(row.topic)
-    detailText = row.raw_text || row.entities
-    location = locationFromEntities(row.entities)
-  }
-
-  const severityScore = combinedSeverity(row, source, confidenceOrUrgency)
-  const severityLevel = getSeverityLevel(severityScore)
-
-  const locationOrTopic =
-    location !== 'N/A' ? location : source === 'Text' ? type : '—'
-
-  return {
-    ...row,
-    source,
-    type,
-    location,
-    locationOrTopic,
-    detailText,
-    confidenceOrUrgency,
-    severityScore,
-    severityLevel,
-  }
-}
-
-/** Sort by module prefix (IMG, AUD, VID, TXT) then numeric suffix; legacy INC- sorts with IMG. */
 const PREFIX_ORDER = { IMG: 0, INC: 0, AUD: 1, VID: 2, TXT: 3 }
 
 function sortByIncidentId(rows) {
@@ -116,25 +26,93 @@ function sortByIncidentId(rows) {
   })
 }
 
-function buildStats(rows) {
-  const total = rows.length
-  const imageCount = rows.filter((r) => r.source === 'Image').length
-  const audioCount = rows.filter((r) => r.source === 'Audio').length
-  const videoCount = rows.filter((r) => r.source === 'Video').length
-  const textCount = rows.filter((r) => r.source === 'Text').length
-  const highSeverity = rows.filter((r) => r.severityLevel === 'High').length
-  const mediumSeverity = rows.filter((r) => r.severityLevel === 'Medium').length
-  const lowSeverity = rows.filter((r) => r.severityLevel === 'Low').length
-  return {
-    total,
-    imageCount,
-    audioCount,
-    videoCount,
-    textCount,
-    highSeverity,
-    mediumSeverity,
-    lowSeverity,
-  }
+function locationFromEntities(entities) {
+  if (!entities || typeof entities !== 'string') return 'N/A'
+  const m = entities.match(/Locations:\s*([^;]+)/)
+  const s = m ? m[1].trim() : ''
+  if (!s || s === 'N/A') return 'N/A'
+  return s
+}
+
+function severityFromConfidence(score) {
+  const s = Number(score) || 0
+  if (s >= 0.7) return 'High'
+  if (s >= 0.3) return 'Medium'
+  return 'Low'
+}
+
+function textSeverity(t) {
+  const neg = String(t.sentiment || '').toUpperCase().includes('NEG')
+  const sc = Number(t.sentiment_score) || 0
+  if (neg && sc >= 0.7) return 'High'
+  if (sc >= 0.7) return 'High'
+  if (sc >= 0.3 || neg) return 'Medium'
+  return 'Low'
+}
+
+function buildSearchText(obj) {
+  return JSON.stringify(obj).toLowerCase()
+}
+
+function buildMergedIncidents() {
+  const audio = audioResults.map((a) => {
+    const row = {
+      ...a,
+      source: 'Audio',
+      type: a.extracted_event || 'Unknown',
+      location: a.location || 'Unknown',
+      confidence: Number(a.urgency_score) || 0,
+      severity: severityFromConfidence(a.urgency_score),
+      details: a.transcript || '',
+    }
+    row.searchText = buildSearchText(row)
+    return row
+  })
+
+  const image = imageResults.map((i) => {
+    const row = {
+      ...i,
+      source: 'Image',
+      type: i.scene_type || 'Unknown',
+      location: 'N/A',
+      confidence: Number(i.confidence_score) || 0,
+      severity: severityFromConfidence(i.confidence_score),
+      details: `${i.objects_detected ?? ''} | OCR: ${i.text_extracted ?? ''}`,
+    }
+    row.searchText = buildSearchText(row)
+    return row
+  })
+
+  const video = videoResults.map((v) => {
+    const row = {
+      ...v,
+      source: 'Video',
+      type: v.event_detected || 'Unknown',
+      location: `Frame ${v.frame_id ?? ''}`,
+      confidence: Number(v.confidence) || 0,
+      severity: severityFromConfidence(v.confidence),
+      details: `t=${v.timestamp}s | ${v.objects ?? ''}`,
+    }
+    row.searchText = buildSearchText(row)
+    return row
+  })
+
+  const text = textResults.map((t) => {
+    const loc = locationFromEntities(t.entities)
+    const row = {
+      ...t,
+      source: 'Text',
+      type: t.topic || 'Unknown',
+      location: loc !== 'N/A' ? loc : 'N/A',
+      confidence: Number(t.sentiment_score) || 0,
+      severity: textSeverity(t),
+      details: t.raw_text || '',
+    }
+    row.searchText = buildSearchText(row)
+    return row
+  })
+
+  return sortByIncidentId([...audio, ...image, ...video, ...text])
 }
 
 function uniqueTypes(rows) {
@@ -142,99 +120,167 @@ function uniqueTypes(rows) {
   return ['All', ...Array.from(set).sort()]
 }
 
+function mostCommonType(rows) {
+  if (!rows.length) return '—'
+  const map = {}
+  rows.forEach((r) => {
+    const t = String(r.type || 'Unknown').trim() || 'Unknown'
+    map[t] = (map[t] || 0) + 1
+  })
+  let best = '—'
+  let n = 0
+  Object.entries(map).forEach(([k, v]) => {
+    if (v > n) {
+      n = v
+      best = k
+    }
+  })
+  return best
+}
+
 export default function App() {
-  const [selectedIncident, setSelectedIncident] = useState(null)
+  const mergedIncidents = useMemo(() => buildMergedIncidents(), [])
+
   const [sourceFilter, setSourceFilter] = useState('All')
   const [typeFilter, setTypeFilter] = useState('All')
+  const [severityFilter, setSeverityFilter] = useState('All')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedIncident, setSelectedIncident] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
-  const mergedRows = useMemo(
-    () =>
-      sortByIncidentId([
-        ...imageResults.map((r) => toIncident(r, 'Image')),
-        ...audioResults.map((r) => toIncident(r, 'Audio')),
-        ...videoResults.map((r) => toIncident(r, 'Video')),
-        ...textResults.map((r) => toIncident(r, 'Text')),
-      ]),
-    [],
-  )
+  const typeOptions = useMemo(() => uniqueTypes(mergedIncidents), [mergedIncidents])
 
-  const typeOptions = useMemo(() => uniqueTypes(mergedRows), [mergedRows])
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    return mergedIncidents.filter((i) => {
+      if (sourceFilter !== 'All' && i.source !== sourceFilter) return false
+      if (typeFilter !== 'All' && String(i.type) !== typeFilter) return false
+      if (severityFilter !== 'All' && i.severity !== severityFilter) return false
+      if (q && !i.searchText.includes(q)) return false
+      return true
+    })
+  }, [mergedIncidents, sourceFilter, typeFilter, severityFilter, searchQuery])
 
-  const filteredRows = useMemo(() => {
-    let out = mergedRows
-    if (sourceFilter !== 'All') {
-      out = out.filter((r) => r.source === sourceFilter)
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [sourceFilter, typeFilter, severityFilter, searchQuery])
+
+  const stats = useMemo(() => {
+    const total = filtered.length
+    const highSeverity = filtered.filter((r) => r.severity === 'High').length
+    const mediumSeverity = filtered.filter((r) => r.severity === 'Medium').length
+    const lowSeverity = filtered.filter((r) => r.severity === 'Low').length
+    return {
+      total,
+      highSeverity,
+      mediumSeverity,
+      lowSeverity,
+      mostCommonType: mostCommonType(filtered),
     }
-    if (typeFilter !== 'All') {
-      out = out.filter((r) => String(r.type) === typeFilter)
-    }
-    return out
-  }, [mergedRows, sourceFilter, typeFilter])
+  }, [filtered])
 
-  const stats = useMemo(() => buildStats(filteredRows), [filteredRows])
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE))
+  const safePage = Math.min(currentPage, totalPages)
+  const startIdx = (safePage - 1) * ITEMS_PER_PAGE
+  const paginated = filtered.slice(startIdx, startIdx + ITEMS_PER_PAGE)
+  const start = filtered.length === 0 ? 0 : startIdx + 1
+  const end = Math.min(startIdx + ITEMS_PER_PAGE, filtered.length)
 
   return (
     <div className="bg-gray-100 min-h-screen">
-      <Header />
+      <Header totalIncidents={mergedIncidents.length} />
 
-      <div className="max-w-6xl mx-auto px-4 pb-10">
-        <div className="my-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 text-sm font-medium text-center">
-          Unified dashboard (Audio · Image · Video · Text). Run{' '}
-          <code className="text-xs bg-amber-100/80 px-1 rounded">sync_dashboard_data.py</code> after
-          pipelines
-        </div>
-
+      <div className="max-w-7xl mx-auto px-4 pb-10">
         <StatsBar stats={stats} />
-        <SceneChart rows={filteredRows} />
 
-        <div className="my-6 flex flex-wrap items-center gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <label htmlFor="source-filter" className="text-sm font-medium text-gray-700">
-              Source
-            </label>
-            <select
-              id="source-filter"
-              value={sourceFilter}
-              onChange={(e) => setSourceFilter(e.target.value)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-            >
-              {SOURCE_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <label htmlFor="type-filter" className="text-sm font-medium text-gray-700">
-              Type
-            </label>
-            <select
-              id="type-filter"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent min-w-[180px]"
-            >
-              {typeOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </div>
+        <SceneChart rows={filtered} />
+
+        <div className="bg-white rounded-xl shadow p-4 my-6 flex flex-wrap gap-4 items-center">
+          <input
+            type="search"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="min-w-[200px] flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+          />
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+          >
+            <option value="All">All sources</option>
+            <option value="Audio">Audio</option>
+            <option value="Image">Image</option>
+            <option value="Video">Video</option>
+            <option value="Text">Text</option>
+          </select>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm min-w-[160px] focus:outline-none focus:ring-2 focus:ring-gray-900"
+          >
+            {typeOptions.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt === 'All' ? 'All types' : opt}
+              </option>
+            ))}
+          </select>
+          <select
+            value={severityFilter}
+            onChange={(e) => setSeverityFilter(e.target.value)}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+          >
+            <option value="All">All severities</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => {
+              setSourceFilter('All')
+              setTypeFilter('All')
+              setSeverityFilter('All')
+              setSearchQuery('')
+            }}
+            className="rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100"
+          >
+            Reset
+          </button>
         </div>
 
-        <IncidentTable
-          rows={filteredRows}
-          onView={(row) => setSelectedIncident(row)}
-        />
+        <IncidentTable incidents={paginated} onSelect={setSelectedIncident} />
+
+        <div className="flex flex-wrap justify-between items-center gap-4 mt-4 bg-white rounded-xl shadow p-4">
+          <span className="text-sm text-gray-700">
+            Showing {start}–{end} of {filtered.length} incidents
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={safePage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-gray-600 px-2">
+              Page {safePage} of {totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={safePage >= totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
 
       {selectedIncident && (
-        <IncidentModal
-          incident={selectedIncident}
-          onClose={() => setSelectedIncident(null)}
-        />
+        <IncidentModal incident={selectedIncident} onClose={() => setSelectedIncident(null)} />
       )}
     </div>
   )

@@ -320,7 +320,7 @@ def run_text_pipeline() -> None:
     out_csv = _OUTPUTS / "text_output.csv"
     out_df.to_csv(out_csv, index=False)
     print(out_df.to_string(index=False))
-    print(f"Processed {len(df)} text reports", flush=True)
+    print(f"[Text Analyst] Processed {len(df)} crime reports", flush=True)
 
 
 if __name__ == "__main__":
