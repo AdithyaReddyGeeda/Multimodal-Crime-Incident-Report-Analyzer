@@ -166,11 +166,15 @@ git push
 
 ---
 
+
+
 ## If something breaks
 
 - **`No such file ... modules/...`** — You are in the wrong folder. `cd` to the project root, then run again.
 - **No CSV in `outputs/`** — Run the matching `*_analyst.py` or `main.py` first.
 - **Images need API** — Add `ROBOFLOW_API_KEY` in `.env`, or rely on the local fallback if your code supports it.
+
+
 
 ---
 
