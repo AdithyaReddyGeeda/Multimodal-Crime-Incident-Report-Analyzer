@@ -1,6 +1,5 @@
 """
-Multimodal Crime/Incident Report Analyzer — text pipeline (Module 5).
-Reads social/news text from data/text/crimereport.csv or crimereport.txt (Kaggle CrimeReport).
+As the fifth module of the Multimodal Crime/Incident Report Analyzer, the text pipeline is responsible for parsing unstructured text. It automatically reads incident data originating from social media and news outlets, utilizing either the crimereport.csv or crimereport.txt files found in the data/text/ directory (based on the Kaggle CrimeReport dataset).
 """
 
 from __future__ import annotations
