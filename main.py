@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Run all multimodal pipelines end-to-end, then merge outputs.
+Run all multimodal pipelines end-to-end (audio, image, video, text, documents), then merge outputs.
 Each step is isolated: failures are logged and the script continues.
 """
 
@@ -28,23 +28,27 @@ if __name__ == "__main__":
 
     from modules.audio_analyst import run_audio_pipeline
 
-    _run_step("[1/5] Running Audio Analyst...", run_audio_pipeline)
+    _run_step("[1/6] Running Audio Analyst...", run_audio_pipeline)
 
     from modules.image_analyst import run_image_pipeline
 
-    _run_step("[2/5] Running Image Analyst...", run_image_pipeline)
+    _run_step("[2/6] Running Image Analyst...", run_image_pipeline)
 
     from modules.video_analyst import run_video_pipeline
 
-    _run_step("[3/5] Running Video Analyst...", run_video_pipeline)
+    _run_step("[3/6] Running Video Analyst...", run_video_pipeline)
 
     from modules.text_analyst import run_text_pipeline
 
-    _run_step("[4/5] Running Text Analyst...", run_text_pipeline)
+    _run_step("[4/6] Running Text Analyst...", run_text_pipeline)
+
+    from modules.document_analyst import run_document_pipeline
+
+    _run_step("[5/6] Running Document Analyst...", run_document_pipeline)
 
     from modules.integrator import run_integration
 
-    _run_step("[5/5] Running Integration...", run_integration)
+    _run_step("[6/6] Running Integration...", run_integration)
 
     print("\n" + "=" * 60, flush=True)
     print("✅ Pipeline complete!", flush=True)

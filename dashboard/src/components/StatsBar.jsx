@@ -34,9 +34,9 @@ export default function StatsBar({ stats }) {
     },
     {
       label: 'Modules Active',
-      value: '4 / 5',
-      borderClass: 'border-l-4 border-gray-400',
-      sub: 'PDF module not included',
+      value: '5 / 5',
+      borderClass: 'border-l-4 border-emerald-500',
+      sub: 'Audio, image, video, text, documents',
     },
   ]
 

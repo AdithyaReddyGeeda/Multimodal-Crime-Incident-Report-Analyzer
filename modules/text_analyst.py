@@ -8,6 +8,7 @@ import re
 import sys
 import warnings
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -208,6 +209,84 @@ def _zero_shot_pipeline():
     )
 
 
+def analyze_single_text(
+    raw: str,
+    idx: int,
+    *,
+    id_prefix: str = "TXT",
+    text_id: str | int | None = None,
+    source_label: str | None = None,
+    nlp: Any = None,
+    sentiment_pipe: Any = None,
+    zs_pipe: Any = None,
+) -> dict[str, object] | None:
+    """
+    Run the same NLP stack as the text pipeline on one string.
+    Used by the text dataset iterator and by document_analyst (PDF/DOCX).
+    """
+    raw_for_preview = raw.strip()
+    if not raw_for_preview:
+        return None
+
+    if source_label is None:
+        source_label = _SOURCE_LABEL
+    if text_id is None:
+        text_id = idx
+
+    try:
+        raw_100 = raw_for_preview[:100] if raw_for_preview else ""
+
+        cleaned = _clean_text(raw)
+        _nltk_tokenize_remove_stopwords(cleaned)
+
+        if nlp is not None:
+            doc = nlp(raw_for_preview or cleaned)
+            entities = _entities_string(doc)
+        else:
+            entities = "People: N/A; Locations: N/A; Organizations: N/A; Dates: N/A"
+
+        snippet = (raw_for_preview or cleaned)[:512]
+
+        sentiment_label = "NEGATIVE"
+        sentiment_score = 0.5
+        if sentiment_pipe is not None:
+            out = sentiment_pipe(snippet)
+            if out:
+                label = str(out[0].get("label", "")).upper()
+                sentiment_score = float(out[0].get("score", 0.5))
+                if "POS" in label or label == "LABEL_1":
+                    sentiment_label = "POSITIVE"
+                else:
+                    sentiment_label = "NEGATIVE"
+
+        topic = "other"
+        if zs_pipe is not None and snippet.strip():
+            try:
+                z = zs_pipe(snippet, candidate_labels=_TOPIC_LABELS, multi_label=False)
+                labels = z.get("labels") or []
+                if labels:
+                    topic = str(labels[0]).lower()
+            except Exception as e:
+                warnings.warn(f"Zero-shot failed for row {idx}: {e}", stacklevel=2)
+                topic = _keyword_topic(cleaned)
+        else:
+            topic = _keyword_topic(cleaned)
+
+        return {
+            "Incident_ID": f"{id_prefix}-{idx:03d}",
+            "Text_ID": str(text_id) if text_id is not None else str(idx),
+            "Source": source_label,
+            "Raw_Text": raw_100,
+            "Sentiment": sentiment_label,
+            "Sentiment_Score": round(sentiment_score, 4),
+            "Entities": entities,
+            "Topic": topic,
+        }
+    except Exception as e:
+        warnings.warn(f"Skipping row {idx}: {e}", stacklevel=2)
+        return None
+
+
 def run_text_pipeline() -> None:
     _ensure_directories()
     dataset_path = _resolve_dataset_path()
@@ -246,60 +325,16 @@ def run_text_pipeline() -> None:
     for idx, (_, row) in enumerate(df.iterrows(), start=1):
         raw = str(row.get(text_col, "") or "")
         text_id = row.get("id", row.get("ID", idx))
-        try:
-            raw_for_preview = raw.strip()
-            raw_100 = raw_for_preview[:100] if raw_for_preview else ""
-
-            cleaned = _clean_text(raw)
-            _nltk_tokenize_remove_stopwords(cleaned)
-
-            if nlp is not None:
-                doc = nlp(raw_for_preview or cleaned)
-                entities = _entities_string(doc)
-            else:
-                entities = "People: N/A; Locations: N/A; Organizations: N/A; Dates: N/A"
-
-            snippet = (raw_for_preview or cleaned)[:512]
-
-            sentiment_label = "NEGATIVE"
-            sentiment_score = 0.5
-            if sentiment_pipe is not None:
-                out = sentiment_pipe(snippet)
-                if out:
-                    label = str(out[0].get("label", "")).upper()
-                    sentiment_score = float(out[0].get("score", 0.5))
-                    if "POS" in label or label == "LABEL_1":
-                        sentiment_label = "POSITIVE"
-                    else:
-                        sentiment_label = "NEGATIVE"
-
-            topic = "other"
-            if zs_pipe is not None and snippet.strip():
-                try:
-                    z = zs_pipe(snippet, candidate_labels=_TOPIC_LABELS, multi_label=False)
-                    labels = z.get("labels") or []
-                    if labels:
-                        topic = str(labels[0]).lower()
-                except Exception as e:
-                    warnings.warn(f"Zero-shot failed for row {idx}: {e}", stacklevel=2)
-                    topic = _keyword_topic(cleaned)
-            else:
-                topic = _keyword_topic(cleaned)
-
-            rows.append(
-                {
-                    "Incident_ID": f"TXT-{idx:03d}",
-                    "Text_ID": str(text_id) if text_id is not None else str(idx),
-                    "Source": _SOURCE_LABEL,
-                    "Raw_Text": raw_100,
-                    "Sentiment": sentiment_label,
-                    "Sentiment_Score": round(sentiment_score, 4),
-                    "Entities": entities,
-                    "Topic": topic,
-                }
-            )
-        except Exception as e:
-            warnings.warn(f"Skipping row {idx}: {e}", stacklevel=2)
+        out = analyze_single_text(
+            raw,
+            idx,
+            text_id=text_id,
+            nlp=nlp,
+            sentiment_pipe=sentiment_pipe,
+            zs_pipe=zs_pipe,
+        )
+        if out:
+            rows.append(out)
 
     out_df = pd.DataFrame(rows)
     if not out_df.empty:

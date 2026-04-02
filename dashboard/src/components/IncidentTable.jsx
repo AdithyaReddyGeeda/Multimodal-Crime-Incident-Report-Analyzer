@@ -19,6 +19,7 @@ const SOURCE_BADGE = {
   Image: 'bg-green-100 text-green-800',
   Video: 'bg-purple-100 text-purple-800',
   Text: 'bg-orange-100 text-orange-800',
+  Document: 'bg-teal-100 text-teal-800',
 }
 
 const SEVERITY_BADGE = {

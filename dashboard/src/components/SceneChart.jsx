@@ -9,12 +9,13 @@ import {
   YAxis,
 } from 'recharts'
 
-const SOURCE_ORDER = ['Audio', 'Image', 'Video', 'Text']
+const SOURCE_ORDER = ['Audio', 'Image', 'Video', 'Text', 'Document']
 const SOURCE_COLORS = {
   Audio: '#3b82f6',
   Image: '#10b981',
   Video: '#a855f7',
   Text: '#f97316',
+  Document: '#0d9488',
 }
 
 const SEVERITY_ORDER = ['High', 'Medium', 'Low']
@@ -25,7 +26,7 @@ const SEVERITY_COLORS = {
 }
 
 function incidentsBySource(rows) {
-  const map = { Audio: 0, Image: 0, Video: 0, Text: 0 }
+  const map = { Audio: 0, Image: 0, Video: 0, Text: 0, Document: 0 }
   rows.forEach((r) => {
     if (map[r.source] !== undefined) map[r.source] += 1
   })
