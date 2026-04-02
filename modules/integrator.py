@@ -1,5 +1,5 @@
 """
-Merge outputs from audio, image, video, and text pipelines into one CSV report.
+Merge outputs from audio, image, video, text, and document pipelines into one CSV report.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ _AUDIO_CSV = _OUTPUTS / "audio_output.csv"
 _IMAGE_CSV = _OUTPUTS / "image_output.csv"
 _VIDEO_CSV = _OUTPUTS / "video_output.csv"
 _TEXT_CSV = _OUTPUTS / "text_output.csv"
+_DOCUMENT_CSV = _OUTPUTS / "document_output.csv"
 _FINAL_CSV = _OUTPUTS / "final_integrated_report.csv"
 
 
@@ -141,6 +142,57 @@ def _load_text_rows() -> list[dict[str, object]]:
     return out
 
 
+def _document_urgency_score(incident_type: str) -> float:
+    s = str(incident_type or "").lower()
+    if any(k in s for k in ("homicide", "shooting", "weapon", "assault", "fire")):
+        return 0.78
+    if any(k in s for k in ("theft", "robbery", "disturbance", "traffic")):
+        return 0.52
+    if "administrative" in s or "training" in s or "other" in s:
+        return 0.35
+    return 0.45
+
+
+def _load_document_rows() -> list[dict[str, object]]:
+    if not _DOCUMENT_CSV.is_file():
+        return []
+    df = pd.read_csv(_DOCUMENT_CSV)
+    out: list[dict[str, object]] = []
+    for _, row in df.iterrows():
+        inc_id = str(row.get("Report_ID") or row.get("Incident_ID") or "DOC-000")
+        def _field(key: str) -> str:
+            v = row.get(key)
+            if v is None or (isinstance(v, float) and pd.isna(v)):
+                return ""
+            s = str(v).strip()
+            return "" if s.lower() == "nan" else s
+
+        itype = _field("Incident_Type") or "other / unspecified"
+        conf = _document_urgency_score(itype)
+        sev = round(min(10.0, max(0.0, conf * 10)), 2)
+        loc = _field("Location") or "N/A"
+        summ = _field("Summary")
+        tail = " | ".join(
+            x
+            for x in (_field("Suspect_Description"), _field("Outcome"))
+            if x and x != "N/A"
+        )
+        details = _clip(f"{summ} {tail}".strip())
+        out.append(
+            {
+                "Incident_ID": inc_id,
+                "Source": "Document",
+                "Type": itype,
+                "Location": loc,
+                "Confidence/Urgency_Score": round(conf, 4),
+                "Severity_Score": sev,
+                "Severity_Level": _severity_level(sev),
+                "Details": details,
+            }
+        )
+    return out
+
+
 def run_integration() -> None:
     """Merge all module CSVs into outputs/final_integrated_report.csv."""
     _OUTPUTS.mkdir(parents=True, exist_ok=True)
@@ -149,6 +201,7 @@ def run_integration() -> None:
     image_rows = _load_image_rows()
     video_rows = _load_video_rows()
     text_rows = _load_text_rows()
+    document_rows = _load_document_rows()
 
     if not _AUDIO_CSV.is_file():
         warnings.warn(f"Missing {_AUDIO_CSV.name}; 0 audio rows in merge.", stacklevel=2)
@@ -158,8 +211,10 @@ def run_integration() -> None:
         warnings.warn(f"Missing {_VIDEO_CSV.name}; 0 video rows in merge.", stacklevel=2)
     if not _TEXT_CSV.is_file():
         warnings.warn(f"Missing {_TEXT_CSV.name}; 0 text rows in merge.", stacklevel=2)
+    if not _DOCUMENT_CSV.is_file():
+        warnings.warn(f"Missing {_DOCUMENT_CSV.name}; 0 document rows in merge.", stacklevel=2)
 
-    all_rows = audio_rows + image_rows + video_rows + text_rows
+    all_rows = audio_rows + image_rows + video_rows + text_rows + document_rows
     cols = [
         "Incident_ID",
         "Source",
@@ -174,10 +229,16 @@ def run_integration() -> None:
 
     out_df.to_csv(_FINAL_CSV, index=False)
     print(out_df.to_string(index=False))
-    na, ni, nv, nt = len(audio_rows), len(image_rows), len(video_rows), len(text_rows)
+    na, ni, nv, nt, nd = (
+        len(audio_rows),
+        len(image_rows),
+        len(video_rows),
+        len(text_rows),
+        len(document_rows),
+    )
     total = len(all_rows)
     print(
-        f"Merged {na} audio + {ni} image + {nv} video + {nt} text incidents = {total} total",
+        f"Merged {na} audio + {ni} image + {nv} video + {nt} text + {nd} document incidents = {total} total",
         flush=True,
     )
     print(f"Wrote {_FINAL_CSV.relative_to(_PROJECT_ROOT)}", flush=True)

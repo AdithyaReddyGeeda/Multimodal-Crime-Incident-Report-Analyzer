@@ -1,6 +1,6 @@
 # Multimodal Crime / Incident Report Analyzer
 
-Four small programs read your **images**, **911-style transcripts**, **videos**, and **crime text**. They save results as CSV files. A **web dashboard** shows everything in one table.
+Five small programs read your **images**, **911-style transcripts**, **videos**, **crime text**, and **PDF/Word documents**. They save results as CSV files. A **web dashboard** shows everything in one table.
 
 You only need to copy-paste the commands below. You do not need to know how the AI works.
 
@@ -72,6 +72,7 @@ cd ..
 | 911 transcripts | `data/audio/transcripts.csv` (or transcribe from `data/audio/` with `transcribe_audio.py`) |
 | Videos | `data/videos/` (e.g. `.mpg`, `.mp4`) |
 | Crime text | `data/text/` — e.g. `crimereport.csv` or `CrimeReport.txt` |
+| PDF / Word reports | `data/documents/` — `.pdf`, `.docx`, or `.txt` files |
 
 If something is missing, that step may skip or warn you.
 
@@ -90,7 +91,7 @@ source .venv/bin/activate
 python3 main.py
 ```
 
-That runs audio, image, video, text, then merges all CSVs into `outputs/final_integrated_report.csv`.
+That runs audio, image, video, text, documents, then merges all CSVs into `outputs/final_integrated_report.csv`.
 
 ### Or run each script yourself
 
@@ -99,6 +100,7 @@ python3 modules/audio_analyst.py
 python3 modules/image_analyst.py
 python3 modules/video_analyst.py
 python3 modules/text_analyst.py
+python3 modules/document_analyst.py
 python3 modules/integrator.py
 ```
 
@@ -118,12 +120,13 @@ Open the link in the terminal (often `http://localhost:5173`).
 
 | File | What it does |
 |------|----------------|
-| `main.py` | Runs all four analysts + integrator in order. If one step fails, the rest still try to run. |
+| `main.py` | Runs all five analysts + integrator in order. If one step fails, the rest still try to run. |
 | `audio_analyst.py` | Reads `transcripts.csv` → `outputs/audio_output.csv` (**AUD-001**, …) |
 | `image_analyst.py` | Reads test images → `outputs/image_output.csv` (**IMG-001**, …) |
 | `video_analyst.py` | Reads videos → `outputs/video_output.csv` (**VID-001**, …) |
 | `text_analyst.py` | Reads crime text → `outputs/text_output.csv` (**TXT-001**, …) |
-| `integrator.py` | Merges the four CSVs → `outputs/final_integrated_report.csv` |
+| `document_analyst.py` | Reads `data/documents/*.{pdf,docx,txt}` (pdfplumber, PyMuPDF, OCR fallback) → `document_output.csv` with **Report_ID**, **Incident_Type**, **Date**, **Location**, **Officer**, **Summary**, plus suspect/outcome |
+| `integrator.py` | Merges the five analyst CSVs → `outputs/final_integrated_report.csv` |
 | `sync_dashboard_data.py` | Copies CSV data into `dashboard/src/data/` for the React app |
 
 Big datasets can take a long time. That is normal.

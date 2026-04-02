@@ -32,6 +32,7 @@ export default function IncidentModal({ incident, onClose }) {
   const isAudio = incident.source === 'Audio'
   const isVideo = incident.source === 'Video'
   const isText = incident.source === 'Text'
+  const isDocument = incident.source === 'Document'
 
   return (
     <div
@@ -68,9 +69,11 @@ export default function IncidentModal({ incident, onClose }) {
             ? `• ${incident.call_id}`
             : isVideo
               ? `• ${incident.frame_id}`
-              : isText
-                ? `• ${incident.text_id}`
-                : `• ${incident.image_id}`}
+              : isDocument
+                ? `• ${incident.report_id || incident.incident_id}`
+                : isText
+                  ? `• ${incident.text_id}`
+                  : `• ${incident.image_id}`}
         </p>
 
         <div className="mt-6 space-y-4">
@@ -98,6 +101,48 @@ export default function IncidentModal({ incident, onClose }) {
                   <dt className="text-gray-500 mb-2">Urgency score</dt>
                   <dd>
                     <ConfidenceBar score={incident.urgency_score} />
+                  </dd>
+                </div>
+              </dl>
+            </>
+          ) : isDocument ? (
+            <>
+              <h3 className="text-sm font-semibold text-gray-700">Document analysis</h3>
+              <dl className="space-y-3 text-sm">
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Incident type</dt>
+                  <dd className="text-gray-900">{incident.incident_type || '—'}</dd>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Date</dt>
+                  <dd className="text-gray-900">{incident.date || '—'}</dd>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Location</dt>
+                  <dd className="text-gray-900">{incident.location || '—'}</dd>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Officer</dt>
+                  <dd className="text-gray-900">{incident.officer || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">Summary</dt>
+                  <dd className="text-gray-900 mt-0.5 break-words whitespace-pre-wrap">
+                    {incident.summary || '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">Suspect</dt>
+                  <dd className="text-gray-900 mt-0.5 break-words">{incident.suspect_description || '—'}</dd>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-between">
+                  <dt className="text-gray-500">Outcome</dt>
+                  <dd className="text-gray-900">{incident.outcome || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 mb-2">Heuristic confidence</dt>
+                  <dd>
+                    <ConfidenceBar score={incident.confidence} />
                   </dd>
                 </div>
               </dl>

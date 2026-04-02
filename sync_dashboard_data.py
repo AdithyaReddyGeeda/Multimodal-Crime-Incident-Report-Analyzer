@@ -1,6 +1,6 @@
 """Sync outputs/*.csv → dashboard/src/data/*.js for the React dashboard.
 
-CSV column Incident_ID may use module prefixes: IMG-, AUD-, VID-, TXT- (or legacy INC-).
+CSV column Incident_ID may use module prefixes: IMG-, AUD-, VID-, TXT-, DOC- (or legacy INC-).
 """
 
 import json
@@ -13,10 +13,12 @@ IMAGE_CSV = PROJECT_ROOT / "outputs" / "image_output.csv"
 AUDIO_CSV = PROJECT_ROOT / "outputs" / "audio_output.csv"
 VIDEO_CSV = PROJECT_ROOT / "outputs" / "video_output.csv"
 TEXT_CSV = PROJECT_ROOT / "outputs" / "text_output.csv"
+DOCUMENT_CSV = PROJECT_ROOT / "outputs" / "document_output.csv"
 IMAGE_JS = PROJECT_ROOT / "dashboard" / "src" / "data" / "imageResults.js"
 AUDIO_JS = PROJECT_ROOT / "dashboard" / "src" / "data" / "audioResults.js"
 VIDEO_JS = PROJECT_ROOT / "dashboard" / "src" / "data" / "videoResults.js"
 TEXT_JS = PROJECT_ROOT / "dashboard" / "src" / "data" / "textResults.js"
+DOCUMENT_JS = PROJECT_ROOT / "dashboard" / "src" / "data" / "docResults.js"
 
 
 def sync_image() -> bool:
@@ -126,11 +128,44 @@ def sync_text() -> bool:
     return True
 
 
+def sync_document() -> bool:
+    records = []
+    if not DOCUMENT_CSV.exists():
+        print(
+            f"⚠️ Document CSV not found at {DOCUMENT_CSV}. "
+            "Run: python modules/document_analyst.py — using empty docResults."
+        )
+    else:
+        df = pd.read_csv(DOCUMENT_CSV)
+        for _, row in df.iterrows():
+            rid = row.get("Report_ID", row.get("Incident_ID", ""))
+            records.append(
+                {
+                    "incident_id": str(rid),
+                    "report_id": str(rid),
+                    "incident_type": str(row.get("Incident_Type", "")),
+                    "date": str(row.get("Date", "")),
+                    "location": str(row.get("Location", "")),
+                    "officer": str(row.get("Officer", "")),
+                    "summary": str(row.get("Summary", "")),
+                    "suspect_description": str(row.get("Suspect_Description", "")),
+                    "outcome": str(row.get("Outcome", "")),
+                }
+            )
+        print(f"✅ Synced {len(records)} document rows → {DOCUMENT_JS.relative_to(PROJECT_ROOT)}")
+
+    js_content = "export const docResults = " + json.dumps(records, indent=2) + ";\n"
+    DOCUMENT_JS.parent.mkdir(parents=True, exist_ok=True)
+    DOCUMENT_JS.write_text(js_content, encoding="utf-8")
+    return bool(records)
+
+
 def sync() -> None:
     sync_image()
     sync_audio()
     sync_video()
     sync_text()
+    sync_document()
     print("   Run: cd dashboard && npm run dev")
 
 

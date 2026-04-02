@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { audioResults } from './data/audioResults.js'
 import { imageResults } from './data/imageResults.js'
 import { textResults } from './data/textResults.js'
+import { docResults } from './data/docResults.js'
 import { videoResults } from './data/videoResults.js'
 import Header from './components/Header.jsx'
 import StatsBar from './components/StatsBar.jsx'
@@ -11,7 +12,7 @@ import IncidentModal from './components/IncidentModal.jsx'
 
 const ITEMS_PER_PAGE = 25
 
-const PREFIX_ORDER = { IMG: 0, INC: 0, AUD: 1, VID: 2, TXT: 3 }
+const PREFIX_ORDER = { IMG: 0, INC: 0, AUD: 1, VID: 2, TXT: 3, DOC: 4 }
 
 function sortByIncidentId(rows) {
   return [...rows].sort((a, b) => {
@@ -48,6 +49,14 @@ function textSeverity(t) {
   if (sc >= 0.7) return 'High'
   if (sc >= 0.3 || neg) return 'Medium'
   return 'Low'
+}
+
+function documentConfidence(incidentType) {
+  const s = String(incidentType || '').toLowerCase()
+  if (/homicide|shooting|weapon|assault|fire|arson/.test(s)) return 0.8
+  if (/theft|robbery|burglary|disturbance|traffic|accident/.test(s)) return 0.52
+  if (/administrative|training|law enforcement report/.test(s)) return 0.34
+  return 0.42
 }
 
 function buildSearchText(obj) {
@@ -112,7 +121,22 @@ function buildMergedIncidents() {
     return row
   })
 
-  return sortByIncidentId([...audio, ...image, ...video, ...text])
+  const documents = docResults.map((t) => {
+    const docConf = documentConfidence(t.incident_type)
+    const row = {
+      ...t,
+      source: 'Document',
+      type: t.incident_type || 'Unknown',
+      location: t.location && String(t.location).trim() && t.location !== 'N/A' ? t.location : 'N/A',
+      confidence: docConf,
+      severity: severityFromConfidence(docConf),
+      details: t.summary || '',
+    }
+    row.searchText = buildSearchText(row)
+    return row
+  })
+
+  return sortByIncidentId([...audio, ...image, ...video, ...text, ...documents])
 }
 
 function uniqueTypes(rows) {
@@ -213,6 +237,7 @@ export default function App() {
             <option value="Image">Image</option>
             <option value="Video">Video</option>
             <option value="Text">Text</option>
+            <option value="Document">Document</option>
           </select>
           <select
             value={typeFilter}
