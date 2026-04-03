@@ -31,7 +31,7 @@ export const audioResults = [
     "call_id": "call_004",
     "transcript": "There's a large fight outside Central Park near the fountain. About 10 people are involved. It's getting violent.",
     "extracted_event": "Public Disturbance",
-    "location": "Central Park",
+    "location": "Unknown",
     "sentiment": "NEGATIVE",
     "urgency_score": 1.0
   },
