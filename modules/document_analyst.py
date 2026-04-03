@@ -282,7 +282,118 @@ def _summary_from_body(body: str, max_chars: int = 600) -> str:
     return s[: max_chars - 3].rsplit(" ", 1)[0] + "..."
 
 
-def _analyze_document(body: str, filename: str) -> dict[str, str]:
+_ANY_DEPT_PAT = re.compile(
+    r"([\w\s,\.'-]{3,60}?(?:Police Department|Sheriff(?:'s\s*Office)?|"
+    r"Department of Public Safety|Police Dept\.))",
+    re.IGNORECASE,
+)
+_COVER_FROM_PAT = re.compile(r"(?im)^From:\s*(.+)$")
+_COVER_DATE_PAT = re.compile(r"(?im)^Date[W\s]?:\s*(.+)$")
+
+
+_CLEAN_DEPT_PAT = re.compile(
+    r"([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*\s+(?:Police Department|Sheriff(?:'s\s*Office)?"
+    r"|Department of Public Safety|Police Dept\.))",
+)
+
+
+def _extract_dept_name(text: str) -> str:
+    """Extract the most prominent department name from a block of text."""
+    # Prefer names at the very start of the text (first 6 lines)
+    for line in text.strip().splitlines()[:6]:
+        m = _ANY_DEPT_PAT.search(line)
+        if m:
+            raw = m.group(1).strip()
+            # Strip sentence fragments — keep only the proper-noun portion
+            clean = _CLEAN_DEPT_PAT.search(raw)
+            return clean.group(1).strip() if clean else raw
+    # Fallback: scan full text
+    m = _ANY_DEPT_PAT.search(text)
+    if m:
+        raw = m.group(1).strip()
+        clean = _CLEAN_DEPT_PAT.search(raw)
+        return clean.group(1).strip() if clean else raw
+    return ""
+
+
+def _split_pdf_sections(path: Path) -> list[dict[str, str]]:
+    """Split a multi-department PDF into per-section dicts with dept, date, officer, text."""
+    try:
+        import pdfplumber
+    except ImportError:
+        return []
+
+    sections: list[dict[str, str]] = []
+    current_pages: list[str] = []
+    current_dept: str = ""
+    current_date: str = "N/A"
+    current_officer: str = "N/A"
+
+    def _flush():
+        if current_pages and current_dept:
+            body = "\n".join(current_pages).strip()
+            if body:
+                sections.append({
+                    "dept": current_dept,
+                    "date": current_date,
+                    "officer": current_officer,
+                    "body": body,
+                })
+
+    with pdfplumber.open(str(path)) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text() or ""
+            if not text.strip():
+                continue
+
+            # Cover letter: "To: Whom it may Concern" (also catch garbled OCR variants)
+            is_cover = bool(
+                re.search(r"(?i)whom\s+it\s+may\s+concern", text)
+                and re.search(r"(?i)^From:", text, re.MULTILINE)
+            )
+
+            if is_cover:
+                _flush()
+                current_pages = [text]
+                fm = _COVER_FROM_PAT.search(text)
+                dm = _COVER_DATE_PAT.search(text)
+                raw_from = fm.group(1).strip() if fm else ""
+                current_date = dm.group(1).strip() if dm else "N/A"
+
+                # If From: is a person title (e.g. "Lt. Brett Hibbs"), find dept in body
+                if raw_from and not _ANY_DEPT_PAT.search(raw_from):
+                    current_officer = raw_from
+                    dept = _extract_dept_name(text)
+                    current_dept = dept if dept else raw_from
+                else:
+                    dept = _extract_dept_name(raw_from) or _extract_dept_name(text)
+                    current_dept = dept if dept else raw_from
+                    current_officer = "N/A"
+            else:
+                # Detect a new section by department name change (no cover letter)
+                page_dept = _extract_dept_name(text)
+                if page_dept and current_dept and page_dept.lower() != current_dept.lower():
+                    # Only start new section if the first few lines strongly indicate a new dept
+                    first_lines = "\n".join(text.strip().splitlines()[:3])
+                    if _ANY_DEPT_PAT.search(first_lines):
+                        _flush()
+                        current_pages = [text]
+                        current_dept = page_dept
+                        current_date = "N/A"
+                        current_officer = "N/A"
+                        continue
+                elif not current_dept and page_dept:
+                    # Very first section in file (no cover letter at all)
+                    current_dept = page_dept
+
+                current_pages.append(text)
+
+    _flush()
+    return sections
+
+
+def _analyze_document(body: str, filename: str, override_date: str = "",
+                      override_location: str = "", override_officer: str = "") -> dict[str, str]:
     lowered = body.lower()
     nlp = None
     doc = None
@@ -297,21 +408,39 @@ def _analyze_document(body: str, filename: str) -> dict[str, str]:
     incident = _incident_type_from_text(lowered)
     summary = _summary_from_body(body) if body else f"(no extractable text from {filename})"
 
-    if doc is not None:
+    if override_date:
+        dt = override_date
+    elif doc is not None:
         dt = _dates_from_spacy(doc)
-        loc = _locations_from_spacy(doc)
-        off = _officer_from_spacy(doc, body)
     else:
         dt = "N/A"
-        loc = "N/A"
-        off = _officer_from_text(body)
-
-    if dt == "N/A" and body:
         m = _DATE_LINE_PATTERN.search(body)
         if m:
             dt = m.group(1).strip()
 
-    if loc == "N/A" and body:
+    if override_location:
+        loc = override_location
+    elif doc is not None:
+        loc = _locations_from_spacy(doc)
+    else:
+        loc = "N/A"
+        ml = _LOCATION_LINE_PATTERN.search(body)
+        if ml:
+            loc = _normalize_ws(ml.group(1))[:200] or "N/A"
+
+    if override_officer:
+        off = override_officer
+    elif doc is not None:
+        off = _officer_from_spacy(doc, body)
+    else:
+        off = _officer_from_text(body)
+
+    if dt == "N/A" and body and not override_date:
+        m = _DATE_LINE_PATTERN.search(body)
+        if m:
+            dt = m.group(1).strip()
+
+    if loc == "N/A" and body and not override_location:
         ml = _LOCATION_LINE_PATTERN.search(body)
         if ml:
             loc = _normalize_ws(ml.group(1))[:200] or "N/A"
@@ -335,8 +464,28 @@ def run_document_pipeline() -> None:
     paths = _list_document_files()
 
     rows: list[dict[str, object]] = []
-    for idx, path in enumerate(paths, start=1):
-        report_id = f"DOC-{idx:03d}"
+    doc_counter = 1
+
+    for path in paths:
+        if path.suffix.lower() == ".pdf":
+            sections = _split_pdf_sections(path)
+            if sections:
+                for sec in sections:
+                    report_id = f"DOC-{doc_counter:03d}"
+                    doc_counter += 1
+                    fields = _analyze_document(
+                        sec["body"],
+                        path.name,
+                        override_date=sec["date"],
+                        override_location=sec["dept"],
+                        override_officer=sec["officer"],
+                    )
+                    rows.append({"Report_ID": report_id, **fields})
+                continue
+
+        # Non-PDF or PDF with no detectable sections → one row per file
+        report_id = f"DOC-{doc_counter:03d}"
+        doc_counter += 1
         try:
             body = _extract_text(path)
         except Exception as e:
@@ -355,7 +504,7 @@ def run_document_pipeline() -> None:
     out_df.to_csv(out_csv, index=False)
     if paths:
         print(out_df.to_string(index=False))
-        print(f"[Document Analyst] Processed {len(rows)} file(s) → {out_csv.name}", flush=True)
+        print(f"[Document Analyst] Processed {len(rows)} section(s) from {len(paths)} file(s) → {out_csv.name}", flush=True)
     else:
         print(
             f"[Document Analyst] No files in {_DATA_DOCS.relative_to(_PROJECT_ROOT)} "
